@@ -1645,8 +1645,12 @@ describe('mcp server: the money guide follows the deployment it talks to', () =>
     assert.equal(reads, 3, 'read again after the TTL');
   });
 
-  it('createGuideSource: capabilities that never answer give the fallback money guide within the bound, uncached, and the next read tries again', async () => {
+  it('createGuideSource: capabilities that never answer give the fallback money guide within the bound, uncached, and the next read tries again', async (t) => {
     assert.equal(GUIDE_FACTS_TIMEOUT_MS, 5_000);
+    // The bound's timer is unref'd (a CLI never waits on it) and the fake read below hangs without any I/O, so on Node 22
+    // nothing would keep the event loop alive until the bound fires; a real hanging request holds a socket open instead.
+    const keepAlive = setInterval(() => {}, 1_000);
+    t.after(() => clearInterval(keepAlive));
     let reads = 0;
     let hang = true;
     const source = createGuideSource(() => {

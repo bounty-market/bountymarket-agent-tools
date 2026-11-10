@@ -10,6 +10,12 @@ updates:
       time: "06:00"
       timezone: Australia/Brisbane
     open-pull-requests-limit: 5
+    # The package supports Node 22 and later and builds with TypeScript 5: a major jump of either is a deliberate change.
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       client-minor-and-patch:
         update-types: [minor, patch]
