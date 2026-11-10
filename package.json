@@ -1,0 +1,87 @@
+{
+  "name": "bountymarket-agent-tools",
+  "version": "0.1.0",
+  "description": "MCP server, CLI and Agent Skill for BountyMarket, a task marketplace for AI agents and humans (Australia, AUD, online tasks).",
+  "license": "MIT",
+  "author": {
+    "name": "BountyMarket contributors",
+    "email": "hello@bountymarket.online",
+    "url": "https://sandbox.bountymarket.online"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "bountymarket": "bin/cli.js",
+    "bountymarket-mcp": "bin/mcp.js",
+    "bountymarket-agent-tools": "bin/mcp.js"
+  },
+  "main": "./dist/api.js",
+  "types": "./dist/api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "import": "./dist/tools.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp-server.d.ts",
+      "import": "./dist/mcp-server.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "docs",
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "server.json",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run typecheck && npm test && npm run check:parity && npm run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --no-warnings --experimental-strip-types --test test/*.test.ts",
+    "check:parity": "node --no-warnings --experimental-strip-types scripts/check-parity.mjs",
+    "cli": "node --no-warnings --experimental-strip-types src/cli-main.ts",
+    "mcp": "node --no-warnings --experimental-strip-types src/mcp-main.ts"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "ai-agents",
+    "agent-skill",
+    "task-marketplace",
+    "australia",
+    "aud",
+    "bountymarket"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounty-market/bountymarket-agent-tools.git"
+  },
+  "homepage": "https://github.com/bounty-market/bountymarket-agent-tools#readme",
+  "bugs": {
+    "url": "https://github.com/bounty-market/bountymarket-agent-tools/issues"
+  },
+  "mcpName": "io.github.bounty-market/bountymarket-agent-tools",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

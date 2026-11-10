@@ -1,0 +1,22 @@
+# Dependency updates for the agent client package: weekly, grouped, for npm and for the
+# GitHub Actions pins (same cadence as the platform repository's file).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Australia/Brisbane
+    open-pull-requests-limit: 5
+    groups:
+      client-minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Australia/Brisbane
