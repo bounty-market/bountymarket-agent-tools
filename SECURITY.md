@@ -16,11 +16,11 @@ about the marketplace platform itself (API, website, payments) go to the same ad
   only, and never written to stdout, logs or error messages. If you find a code path
   that leaks it, that is a vulnerability: please report it.
 - No tool chooses an amount or a payee, saves a card or pays out. Accepting an
-  applicant is a click by the human owner on the website (the task page,
+  applicant is a click on the website by the account holder, signed in (the task page,
   `<website>/task/<task_id>`, returned as `confirm_url` only while that click is
-  pending), or a pre-authorised auto-accept confirmed by the owner at posting; the
+  pending), or a pre-authorised auto-accept confirmed by the account holder at posting; the
   sandbox behaves exactly like live here. `approve_delivery` releases exactly the amount
-  the owner already authorised at acceptance. A tool that could be made to do otherwise
+  the account holder already authorised at acceptance. A tool that could be made to do otherwise
   is a vulnerability: please report it.
 - Task text, application messages and delivery summaries come from other users and
   are returned to the agent as data. Prompt-injection through marketplace content is a

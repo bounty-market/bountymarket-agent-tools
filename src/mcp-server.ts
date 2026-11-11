@@ -5,7 +5,7 @@
  * It exposes the same tools as the platform's hosted MCP endpoint (same names,
  * descriptions, input schemas and annotations) and implements them over the
  * public REST API (`src/actions.ts` on top of `src/api.ts`). Read-only tools
- * work without credentials; tools that act for an owner need
+ * work without credentials; tools that act for an account holder need
  * BOUNTYMARKET_API_KEY. Tool results mirror the hosted endpoint (2026-10-15.13):
  * one representation, the JSON in content[0].text (no outputSchema anywhere);
  * `structuredContent` is added only when the call's params._meta carries
@@ -20,14 +20,14 @@
  * endpoint (the money guide follows the deployment's fee schedule, read from its
  * capabilities: createGuideSource), and `me` returns the GET /v1/me document.
  *
- * No tool chooses an amount or a payee. Accepting an applicant is a click by the
- * human owner on the website, in sandbox and live alike, unless auto-accept was
+ * No tool chooses an amount or a payee. Accepting an applicant is a click on the
+ * website by the account holder, signed in, in sandbox and live alike, unless auto-accept was
  * pre-authorised at posting (`disable_auto_accept` withdraws it), and so is
  * confirming a cancellation (`request_cancellation` only asks). A result carries
- * `confirm_url` only when the owner has one thing only a human can do there
- * (`next_step` says what); every task carries `website_url` for linking.
- * approve_delivery captures exactly the amount the owner already authorised at
- * acceptance, and raise_issue / respond_to_issue work with the owner's standing
+ * `confirm_url` only when the account holder has one thing to do there that an agent key
+ * cannot do (`next_step` says what); every task carries `website_url` for linking.
+ * approve_delivery captures exactly the amount the account holder already authorised at
+ * acceptance, and raise_issue / respond_to_issue work with the key's standing
  * authority (setter_mode / hunter_mode "always"). post_task `validate_only: true`
  * is a dry run. 21 tools (get_money since 2026-10-15, withdraw_application since 2026-10-15.12, me since 2026-10-15.13,
  * withdraw_issue since 2026-10-15.16, request_limit since 2026-10-19.2, cancel_task and request_cancellation since
@@ -153,22 +153,22 @@ function toolResult(value: Record<string, unknown>, isError = false, structured 
  * (agentKeyRequiredError), not this JSON-RPC error; kept only for callers that still import it.
  */
 export function authRequiredError(): McpError {
-  return new McpError(RPC.AUTH_REQUIRED, 'This tool acts for an agent owner and needs an agent API key.', {
+  return new McpError(RPC.AUTH_REQUIRED, 'This tool acts for an account holder and needs an agent API key.', {
     code: 'agent_api_key_required',
     status: 401,
-    how_to: 'The human owner signs in on the website and creates an agent key (Account > Agents), then starts this server '
+    how_to: 'The account holder signs in on the website and creates an agent key (Account > Agents), then starts this server '
       + `with ${ENV_API_KEY}=bhk_... in its environment. Human sessions use the website or the REST API.`,
   });
 }
 
 /**
- * A tool that acts for an owner, called without an agent key: the hosted endpoint's agent_api_key_required document
+ * A tool that acts for an account holder, called without an agent key: the hosted endpoint's agent_api_key_required document
  * (401, details { owner_url, create_key }), with the environment variable this server reads instead of a header.
  */
 export function agentKeyRequiredError(ownerUrl: string): ApiClientError {
-  return new ApiClientError(401, 'agent_api_key_required', 'This tool acts for an agent owner and needs an agent API key.',
+  return new ApiClientError(401, 'agent_api_key_required', 'This tool acts for an account holder and needs an agent API key.',
     { owner_url: ownerUrl, create_key: 'POST /v1/me/agents' },
-    'The human owner signs in on the website, creates an agent key under Account > Agents (details.owner_url) and gives it to you; start this server '
+    'The account holder signs in on the website, creates an agent key under Account > Agents (details.owner_url) and gives it to you; start this server '
       + `with ${ENV_API_KEY}=bhk_... in its environment. A human session uses the website or the REST API instead.`, false);
 }
 
@@ -228,7 +228,7 @@ const RUNNERS: Record<string, Runner> = {
       ...(args.auto_accept === undefined ? {} : { auto_accept: args.auto_accept as AutoAcceptInput }),
       // min_hunter_tier (platform 2026-10-19.2): the Setter's own entry tier, passed through as given; the platform validates it (422 invalid_min_hunter_tier).
       ...(args.min_hunter_tier === undefined ? {} : { min_hunter_tier: args.min_hunter_tier as TrustTier }),
-      // attachment_ids (2026-10-11): draft brief files the owner uploaded over REST (POST /v1/uploads, no query).
+      // attachment_ids (2026-10-11): draft brief files the account uploaded over REST (POST /v1/uploads, no query).
       ...(args.attachment_ids === undefined ? {} : { attachment_ids: args.attachment_ids as string[] }),
     };
     // validate_only: every check runs, nothing is created; the platform answers { valid, would_create, warnings }.
@@ -248,7 +248,7 @@ const RUNNERS: Record<string, Runner> = {
   list_my_assignments: (_args, ctx) => ctx.actions.listMyAssignments(),
   get_money: (_args, ctx) => ctx.actions.getMoney(),
   submit_delivery: (args, ctx) => {
-    // assignment_id OR task_id, as on the hosted endpoint; the platform resolves a task id to the owner's live assignment.
+    // assignment_id OR task_id, as on the hosted endpoint; the platform resolves a task id to the account's live assignment.
     const target = (args.assignment_id as string | undefined) ?? (args.task_id as string | undefined);
     if (!target) {
       throw argumentsError('submit_delivery', ['arguments: assignment_id or task_id is required']);
@@ -263,7 +263,7 @@ const RUNNERS: Record<string, Runner> = {
   respond_to_issue: (args, ctx) => ctx.actions.respondToIssue(args.task_id as string, args.text as string),
   withdraw_issue: (args, ctx) => ctx.actions.withdrawIssue(args.task_id as string),
   // cancel_task / request_cancellation (platform 2026-11-10): over POST /v1/tasks/{id}/cancel and
-  // POST /v1/assignments/{id}/cancellation/request; confirming a cancellation stays the other owner's click.
+  // POST /v1/assignments/{id}/cancellation/request; confirming a cancellation stays the other side's click.
   cancel_task: (args, ctx) => ctx.actions.cancelTask(args.task_id as string),
   request_cancellation: (args, ctx) => {
     const assignmentId = (args.assignment_id as string | undefined) ?? null;
@@ -271,7 +271,7 @@ const RUNNERS: Record<string, Runner> = {
     if (!assignmentId && !taskId) throw argumentsError('request_cancellation', ['arguments: assignment_id or task_id is required']);
     return ctx.actions.requestCancellation({ assignmentId, taskId });
   },
-  // request_limit (platform 2026-10-19.2): a limit request filed for the owner by this key; the platform paces and the founder decides.
+  // request_limit (platform 2026-10-19.2): a limit request filed for the account holder by this key; the platform paces and the founder decides.
   request_limit: (args, ctx) => ctx.actions.requestLimit({
     side: args.side as 'setter' | 'hunter', level: args.level as 1 | 2 | 3, task_id: args.task_id as string | undefined,
     requested: args.requested as LimitValues, reason: args.reason as string,
@@ -387,7 +387,7 @@ Usage:
   ${MCP_BIN} --help       print this help (also -h)
 
 Environment:
-  ${ENV_API_KEY}   the agent key (bhk_...) the owner created on the website under Account > Agents;
+  ${ENV_API_KEY}   the agent key (bhk_...) the account holder created on the website under Account > Agents;
                          without it only the four read-only tools are listed
   ${ENV_API_URL}   the API origin (default ${DEFAULT_API_URL})
   ${ENV_WEB_URL}   the website origin for confirm_url links (default: read from the capabilities document)

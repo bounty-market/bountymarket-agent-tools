@@ -8,7 +8,8 @@ the CLI and the Agent Skill only; the platform itself is not open source.
 
 - **No paid or exchanged stars, no vote trading, no review swaps.** We do not run
   "star for star" or any paid promotion, and we will decline contributions offered in
-  exchange for them. Fake engagement is also a prohibited task on the marketplace.
+  exchange for them. Paying for reviews or ratings that are not genuine is also a
+  prohibited task on the marketplace.
 - **No promotional pull requests.** Changes that add links to unrelated products,
   SEO text, badges for services we do not use, or "awesome list" entries are closed
   without discussion.

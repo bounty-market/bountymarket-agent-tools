@@ -48,7 +48,8 @@ const capabilities = {
     last_changed_at: null,
     description: 'The money caps grow with the marketplace\'s track record: after streak_target consecutive dispute-free settlements site-wide the caps double, up to their ceilings.',
   },
-  confirm_url: 'confirm_url appears in a result ONLY when the owner has one thing only a human can do on the website: accept an applicant by hand, confirm an agent-requested auto-accept (one click), or confirm the other side\'s cancellation request. next_step says which. A result without confirm_url needs no human; every task carries website_url (<PUBLIC_BASE_URL>/task/{id}) for plain linking.',
+  // The platform's capabilities.confirm_url since 2026-11-12.1 (the account holder, signed in on the website; never a human owner).
+  confirm_url: 'confirm_url appears in a result ONLY when the account holder has one thing to do on the website, signed in, that an agent key cannot do: accept an applicant by hand, confirm an agent-requested auto-accept (one click), or confirm the other side\'s cancellation request. next_step says which. A result without confirm_url needs no click on the website; every task carries website_url (<PUBLIC_BASE_URL>/task/{id}) for plain linking.',
   links: { website: 'https://web.test', task_page: 'https://web.test/task/{id}', api: 'https://api.test/v1', mcp: 'https://api.test/mcp' },
   links_note: 'api, openapi, mcp, manifest, policy, capabilities, events, tasks and report are built from the origin that answered this request (the API). website, task_page, rules, terms, privacy and contact are built from the public website base (PUBLIC_BASE_URL), which can be a different host.',
 };
@@ -110,7 +111,9 @@ describe('mcp server: handshake and tool list', () => {
       assert.equal(s.client.getInstructions(), SERVER_INSTRUCTIONS);
       // 2026-10-15.13: the short instructions (at most 1,200 characters), the env var in place of the header.
       assert.ok(SERVER_INSTRUCTIONS.length <= 1200, `${SERVER_INSTRUCTIONS.length} chars`);
-      assert.match(SERVER_INSTRUCTIONS, /a result with confirm_url means the owner has one thing only a human can do there \(next_step says what\); without it nothing needs a human/);
+      assert.match(SERVER_INSTRUCTIONS, /a result with confirm_url means the account holder must click there \(next_step says what\); without it nothing needs a click/);
+      assert.match(SERVER_INSTRUCTIONS, /To act for an account holder, start this server with the agent API key they created on the website/);
+      assert.doesNotMatch(SERVER_INSTRUCTIONS, /\bowner\b/i);
       assert.match(SERVER_INSTRUCTIONS, /in BOUNTYMARKET_API_KEY and call me first/);
       assert.doesNotMatch(SERVER_INSTRUCTIONS, /Authorization: Bearer/);
       assert.deepEqual(s.client.getServerCapabilities(), { tools: { listChanged: false }, resources: { subscribe: false, listChanged: false } });
@@ -163,7 +166,7 @@ describe('mcp server: read-only tools', () => {
       assert.deepEqual(result.data!.caps_autoscale.ceilings, { max_task_bounty_minor: 50000, new_setter_task_cap_minor: 10000, setter_daily_cap_minor: 100000, site_daily_cap_minor: 500000 });
       assert.equal(result.data!.caps_autoscale.target, 20);
       assert.match(result.data!.links_note, /built from the origin that answered this request \(the API\)/);
-      assert.match(result.data!.confirm_url, /ONLY when the owner has one thing only a human can do/);
+      assert.match(result.data!.confirm_url, /ONLY when the account holder has one thing to do on the website, signed in, that an agent key cannot do/);
     } finally {
       await s.close();
     }
@@ -488,8 +491,8 @@ describe('mcp server: agent tools', () => {
       },
       warnings: [
         { code: 'listing_will_be_reviewed', message: 'A new Setter\'s first listing is reviewed by the founder before becoming visible: this task would be created as pending_review (target 24 hours, a target, not a guarantee; see capabilities.review).' },
-        { code: 'auto_accept_needs_owner_confirmation', message: 'auto_accept was requested by an agent key: it would stay pending_owner_confirmation (nothing automatic) until the owner confirms with one click at confirm_url (https://web.test/task/{id}?confirm=auto_accept).' },
-        { code: 'no_saved_card', message: 'The owner has no saved card. Posting works, but no application can be accepted (412 payment_method_required) and auto-accept would fail with payment_failed until the owner saves a card on the website.' },
+        { code: 'auto_accept_needs_owner_confirmation', message: 'auto_accept was requested by an agent key: it would stay pending_owner_confirmation (nothing automatic) until the account holder confirms with one click at confirm_url (https://web.test/task/{id}?confirm=auto_accept).' },
+        { code: 'no_saved_card', message: 'The account has no saved card. Posting works, but no application can be accepted (412 payment_method_required) and auto-accept would fail with payment_failed until the account holder saves a card on the website.' },
       ],
     };
     const s = await connect({ apiKey: 'bhk_x', handler: routes({
@@ -570,12 +573,12 @@ describe('mcp server: agent tools', () => {
 
   it('post_task surfaces prohibited_task as a tool error with the matched categories', async () => {
     const s = await connect({ apiKey: 'bhk_x', handler: routes({
-      'POST /v1/tasks': { status: 422, json: { error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_engagement'] } } } },
+      'POST /v1/tasks': { status: 422, json: { error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_reviews'] } } } },
     }) });
     try {
       const result = await s.call('post_task', { title: 'Buy 100 five-star reviews', brief: 'b'.repeat(20), deliverable: 'reviews', acceptance_criteria: 'visible', category_code: 'other', bounty_minor: 1000, delivery_hours: 1 });
       assert.equal(result.isError, true);
-      assert.deepEqual(result.data!.error.details, { categories: ['fake_engagement'] });
+      assert.deepEqual(result.data!.error.details, { categories: ['fake_reviews'] });
     } finally {
       await s.close();
     }
@@ -756,7 +759,7 @@ describe('mcp server: agent tools', () => {
     try {
       const result = await cancellation.call('get_task', { task_id: UUID_A });
       assert.deepEqual(result.data, { task: { ...sampleTask, status: 'assigned' }, participant: asked, confirm_url: WEBSITE_URL_A });
-      assert.match(result.data!.participant.next_step, /^The Setter asked to cancel by mutual agreement: the owner confirms at confirm_url/);
+      assert.match(result.data!.participant.next_step, /^The Setter asked to cancel by mutual agreement: the account holder confirms at confirm_url/);
     } finally {
       await cancellation.close();
     }
@@ -1113,7 +1116,7 @@ describe('mcp server: review tools (Setter side approve and raise_issue, Hunter 
       assert.deepEqual(s.calls[1]!.body, { text: 'All three papers are covered; see page 2.' });
       assert.deepEqual(result.data, {
         review: answered,
-        next_step: 'Recorded (the one response). The Setter may approve (completion.approved), withdraw the issue (completion.issue_withdrawn) or leave it to the founder (completion.decided); any released amount (after the platform fee, before Stripe\'s own processing fee) settles to the owner\'s Stripe balance (available after Stripe\'s holding period).',
+        next_step: 'Recorded (the one response). The Setter may approve (completion.approved), withdraw the issue (completion.issue_withdrawn) or leave it to the founder (completion.decided); any released amount (after the platform fee, before Stripe\'s own processing fee) settles to the Hunter\'s Stripe balance (available after Stripe\'s holding period).',
       });
     } finally {
       await s.close();
@@ -1321,7 +1324,7 @@ describe('mcp server: limits (trust stage 1, platform 2026-10-19.2): post_task.m
 
       const hunter = await s.call('request_limit', { side: 'hunter', level: 2, requested: { slots: 5 }, reason: REASON });
       assert.deepEqual(s.calls[1]!.body, { side: 'hunter', level: 2, requested: { slots: 5 }, reason: REASON });
-      assert.match(hunter.data!.next_step, /Filed for your owner\. The founder answers in the console, normally within 24 hours: watch get_events for limit_request\.approved \/ limit_request\.declined/, 'the fallback when the platform omits next_step');
+      assert.match(hunter.data!.next_step, /Filed for the account holder\. The founder answers in the console, normally within 24 hours: watch get_events for limit_request\.approved \/ limit_request\.declined/, 'the fallback when the platform omits next_step');
 
       // Argument errors are caught before any request: level 4, a non-UUID task_id, requested not an object, a missing reason.
       const before = s.calls.length;
@@ -1379,11 +1382,11 @@ describe('mcp server: platform 2026-11-10: cancel_task, request_cancellation, pe
       const result = await s.call('list_my_tasks');
       const byId = Object.fromEntries((result.data.tasks as Array<Record<string, any>>).map((t) => [t.id, t]));
       assert.deepEqual(byId[UUID_A]!.pending_owner_action, { kind: 'accept_applicant', confirm_url: `https://web.test/task/${UUID_A}` });
-      assert.equal(byId[UUID_A]!.next_step, '2 pending applications: the owner accepts one by hand at confirm_url (never a tool).');
+      assert.equal(byId[UUID_A]!.next_step, '2 pending applications: the account holder accepts one by hand at confirm_url (never a tool).');
       assert.deepEqual(byId[UUID_B]!.pending_owner_action, { kind: 'confirm_auto_accept', confirm_url: `https://web.test/task/${UUID_B}?confirm=auto_accept` });
-      assert.equal(byId[UUID_B]!.next_step, 'The owner confirms the requested auto-accept with one click at confirm_url; until then nothing is automatic.');
+      assert.equal(byId[UUID_B]!.next_step, 'The account holder confirms the requested auto-accept with one click at confirm_url; until then nothing is automatic.');
       assert.deepEqual(byId[UUID_C]!.pending_owner_action, { kind: 'confirm_cancellation', confirm_url: `https://web.test/task/${UUID_C}` });
-      assert.equal(byId[UUID_C]!.next_step, 'The Hunter asked for a mutual cancellation: only the owner can confirm it, at confirm_url; until then the contract stands.');
+      assert.equal(byId[UUID_C]!.next_step, 'The Hunter asked for a mutual cancellation: only the account holder can confirm it, at confirm_url; until then the contract stands.');
       assert.equal(byId[UUID_D]!.pending_owner_action, null);
       assert.equal('next_step' in byId[UUID_D]!, false);
       assert.deepEqual(s.calls.map((c) => `${c.method} ${c.url.pathname}`), ['GET /v1/me/tasks', `GET /v1/tasks/${UUID_C}`], 'only the assigned row needs its view');
@@ -1403,7 +1406,7 @@ describe('mcp server: platform 2026-11-10: cancel_task, request_cancellation, pe
       const result = await s.call('list_my_assignments');
       const [first, second] = result.data.assignments as Array<Record<string, any>>;
       assert.deepEqual(first!.pending_owner_action, { kind: 'confirm_cancellation', confirm_url: WEBSITE_URL_A });
-      assert.equal(first!.next_step, 'The Setter asked for a mutual cancellation: only the owner can confirm it, at confirm_url; until then the contract stands.');
+      assert.equal(first!.next_step, 'The Setter asked for a mutual cancellation: only the account holder can confirm it, at confirm_url; until then the contract stands.');
       assert.equal(second!.pending_owner_action, null);
       assert.equal(s.calls.filter((c) => c.url.pathname === `/v1/tasks/${UUID_A}`).length, 1);
     } finally {
@@ -1467,7 +1470,7 @@ describe('mcp server: platform 2026-11-10: cancel_task, request_cancellation, pe
       const byTask = await s.call('request_cancellation', { task_id: UUID_A });
       assert.deepEqual(byTask.data, {
         ok: true, assignment: { id: UUID_B, status: 'active' }, task_id: UUID_A, requested_by: 'setter',
-        next_step: 'Requested (cancellation.requested event). Nothing changes until the Hunter\'s owner confirms on the website, a human click (assignment.cancelled follows): '
+        next_step: 'Requested (cancellation.requested event). Nothing changes until the Hunter\'s account holder confirms on the website, a human click (assignment.cancelled follows): '
           + 'then the card hold is released, or a captured charge refunded in full. Until then the contract stands and its deadlines run.',
       });
       assert.deepEqual(s.calls.map((c) => `${c.method} ${c.url.pathname}`), [`GET /v1/tasks/${UUID_A}`, `POST /v1/assignments/${UUID_B}/cancellation/request`],
@@ -1513,7 +1516,7 @@ describe('mcp server: platform 2026-11-10: cancel_task, request_cancellation, pe
       const result = await s.call('request_cancellation', { task_id: UUID_A });
       assert.equal(result.isError, undefined);
       assert.equal(result.data.requested_by, 'hunter');
-      assert.match(result.data.next_step, /until the Setter's owner confirms on the website/);
+      assert.match(result.data.next_step, /until the Setter's account holder confirms on the website/);
       assert.equal(taskReads, 1);
     } finally {
       await s.close();

@@ -39,6 +39,9 @@ describe('plugin.json (Agent Plugin manifest)', () => {
     assert.ok(plugin.keywords.includes('mcp') && plugin.keywords.includes(MCP_URI_SCHEME), plugin.keywords.join(','));
     assert.ok(plugin.description.length >= 100 && plugin.description.length <= 1000, `${plugin.description.length} chars`);
     assert.match(plugin.description, /No tool chooses an amount or a payee/, 'the money rule is stated where a marketplace reviewer reads it');
+    // Platform 2026-11-12.1 (founder 2026-11-11): an agent acts through an account; the manifest names the account holder, never an owner.
+    assert.match(plugin.description, /accepting an applicant is the account holder's click on the website, signed in, or a pre-authorised auto-accept/);
+    assert.doesNotMatch(`${plugin.description} ${plugin.mcpServersNote}`, /\bowner\b/i);
     assert.doesNotMatch(read('plugin.json'), /\{\{[A-Z_]+\}\}/u, 'no unfilled template token');
   });
 

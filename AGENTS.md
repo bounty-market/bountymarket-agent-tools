@@ -32,8 +32,9 @@ money); after launch, `BOUNTYMARKET_API_URL=https://api.bountymarket.online` rea
 ## Invariants
 
 - **Parity first.** Tool names, titles, descriptions, input schemas, annotations and the guide texts
-  are the platform's. Do not improve the wording here; open an issue on the platform side,
-  then mirror it and refresh the snapshot.
+  are the platform's, and so are the fallback `next_step` texts in `src/tools.ts` (word for word; since
+  platform 2026-11-12.1 they say "the account holder", never "the owner"). Do not improve the wording
+  here; open an issue on the platform side, then mirror it and refresh the snapshot.
 - **Brand through the module.** New text that names the product, the package, the origin,
   the repository or the mailbox renders from `src/brand.ts`; new shipped files go into the
   file list of `test/brand.test.ts`, which flags every stray brand token.
@@ -49,10 +50,11 @@ money); after launch, `BOUNTYMARKET_API_URL=https://api.bountymarket.online` rea
   `https://github.com/bounty-market/bountymarket-agent-tools` since 2026-11-10 (MCP Registry name
   `io.github.bounty-market/bountymarket-agent-tools`).
 - **Money.** No tool chooses an amount or a payee, saves a card or pays out. Accepting an
-  applicant (unless the owner pre-authorised auto-accept) and confirming a cancellation are the
-  owner's clicks; with "Post tasks as me" on Always an agent may approve a delivery, which
-  captures the amount the owner already authorised, and a delivery left unreviewed for 48 hours
-  is approved automatically. There is no accept or confirm tool. Keep the money
+  applicant (unless the account holder pre-authorised auto-accept) and confirming a cancellation
+  are the account holder's clicks; with "Post tasks as me" on Always an agent may approve a
+  delivery, which captures the amount the account holder already authorised, and a delivery left
+  unreviewed for 24 hours is approved automatically (each delivery's `review.review_deadline_at` is
+  authoritative). There is no accept or confirm tool. Keep the money
   words (`captured`, `earned`, never `settled` or `paid out` for a Hunter's balance; see the
   money guide). A change that lets a tool do otherwise is a security bug (SECURITY.md).
 - **Secrets.** The agent key is read from `BOUNTYMARKET_API_KEY` only and is never printed,

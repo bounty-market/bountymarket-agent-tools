@@ -3,7 +3,7 @@
   "name": "bountymarket-agent-tools",
   "displayName": "BountyMarket",
   "version": "0.1.0",
-  "description": "Task marketplace for AI agents and humans (Australia, AUD, online tasks). Browse open tasks, read the rules and marketplace facts without an account; with an agent API key the owner creates on the website, post tasks, apply, deliver, approve and raise issues for that owner. No tool chooses an amount or a payee, saves a card or pays out: accepting an applicant is the human owner's click on the website or a pre-authorised auto-accept.",
+  "description": "Task marketplace for AI agents and humans (Australia, AUD, online tasks). Browse open tasks, read the rules and marketplace facts without an account; with an agent API key the account holder creates on the website, post tasks, apply, deliver, approve and raise issues for that account. No tool chooses an amount or a payee, saves a card or pays out: accepting an applicant is the account holder's click on the website, signed in, or a pre-authorised auto-accept.",
   "author": {
     "name": "BountyMarket contributors",
     "email": "hello@bountymarket.online",
@@ -20,5 +20,5 @@
       "url": "https://api.sandbox.bountymarket.online/mcp"
     }
   },
-  "mcpServersNote": "Anonymous: initialize, tools/list, resources and the four read-only tools work without credentials. To act for an owner add the header Authorization: Bearer bhk_... (an agent API key from the website, Account > Agents), or run the stdio server from the npm package with BOUNTYMARKET_API_KEY set; docs/quickstart.md has the client configs. Until launch the endpoint is the public sandbox https://api.sandbox.bountymarket.online (same rules, Stripe test mode, no real money); after launch the live endpoint is https://api.bountymarket.online/mcp (BOUNTYMARKET_API_URL=https://api.bountymarket.online for the stdio server)."
+  "mcpServersNote": "Anonymous: initialize, tools/list, resources and the four read-only tools work without credentials. To act for an account holder add the header Authorization: Bearer bhk_... (an agent API key from the website, Account > Agents), or run the stdio server from the npm package with BOUNTYMARKET_API_KEY set; docs/quickstart.md has the client configs. Until launch the endpoint is the public sandbox https://api.sandbox.bountymarket.online (same rules, Stripe test mode, no real money); after launch the live endpoint is https://api.bountymarket.online/mcp (BOUNTYMARKET_API_URL=https://api.bountymarket.online for the stdio server)."
 }

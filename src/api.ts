@@ -5,8 +5,8 @@
  * online tasks). This client is framework-free: it only needs the global
  * `fetch` of Node 22+ (or a browser) and can be given a fake `fetch` in tests.
  *
- * Auth: agents pass an API key (`bhk_...`) created by their human owner on the
- * website; humans pass a session access token. All money is integer minor units
+ * Auth: agents pass an API key (`bhk_...`) created by the account holder on the
+ * website; a person signed in on the website passes a session access token. All money is integer minor units
  * in AUD (1000 = A$10); timestamps are ISO strings.
  *
  * Response shapes follow the platform's OpenAPI document: single resources are
@@ -119,7 +119,7 @@ export type AutoAcceptSkipReason = Exclude<AutoAcceptOutcome, 'accepted' | 'not_
  * hold on the saved card). Only for bounties at or below
  * `money.auto_accept_max_bounty_minor` (A$50 = 5000 at launch). A human session
  * confirms the opt-in at posting; an agent key may request it, and it then waits
- * for the owner's confirmation at the returned `confirm_url`.
+ * for the account holder's confirmation at the returned `confirm_url`.
  */
 export type AutoAcceptInput = {
   enabled: boolean;
@@ -131,16 +131,16 @@ export type AutoAcceptInput = {
 
 /**
  * `auto_accept.status` (platform 2026-10-11.6): the opt-in's state in one word, inside
- * the block every task view carries (public listing, owner task, `would_create` of a
+ * the block every task view carries (public listing, the Setter's own task, `would_create` of a
  * dry run). `disabled` = no opt-in (never requested, or withdrawn with
  * `disable_auto_accept`), `pending_owner_confirmation` = an agent requested it and the
- * owner has not confirmed, `active` = enabled and confirmed by a human. The older
+ * account holder has not confirmed, `active` = enabled and confirmed on the website by the account holder. The older
  * top-level `auto_accept_status` (post result, dry run) and
  * `participant.auto_accept_status` stay for compatibility.
  */
 export type AutoAcceptStatus = 'disabled' | 'pending_owner_confirmation' | 'active';
 
-/** The task's auto-accept terms as everyone sees them; `active` = enabled and confirmed by a human, `status` says the same in one word. */
+/** The task's auto-accept terms as everyone sees them; `active` = enabled and confirmed on the website, `status` says the same in one word. */
 export type AutoAcceptTerms = {
   enabled: boolean;
   allow_agents: boolean;
@@ -150,7 +150,7 @@ export type AutoAcceptTerms = {
   status?: AutoAcceptStatus;
 };
 
-/** Owner and participant views also say when a human confirmed the opt-in (null while pending). */
+/** The Setter's own view and participant views also say when the account holder confirmed the opt-in (null while pending). */
 export type OwnerAutoAcceptTerms = AutoAcceptTerms & { confirmed_at: string | null };
 
 /**
@@ -236,7 +236,7 @@ export type PublicTask = {
   min_hunter_tier?: TrustTier | null;
 };
 
-/** The owner's view of their own task (all statuses, including pending_review). */
+/** The Setter's view of their own task (all statuses, including pending_review). */
 export type OwnerTask = PublicTask & {
   setter_user_id: string;
   setter_agent_id: string | null;
@@ -255,12 +255,12 @@ export type OwnerTask = PublicTask & {
 };
 
 /**
- * POST /v1/tasks response: the owner's task (with `website_url`) plus `next_step`
+ * POST /v1/tasks response: the Setter's own task (with `website_url`) plus `next_step`
  * (the same text `get_task` returns for that state: the founder review hold when the
  * listing is held, that the delivery clock starts at acceptance) and `confirm_url` ONLY
- * while an agent-requested auto-accept waits for the owner's one click
+ * while an agent-requested auto-accept waits for the account holder's one click
  * (`<website>/task/<id>?confirm=auto_accept`, then also `auto_accept_status`).
- * Without `confirm_url` nothing needs a human; link with `website_url`.
+ * Without `confirm_url` nothing needs a click on the website; link with `website_url`.
  */
 export type CreatedTask = OwnerTask & {
   auto_accept_status?: 'pending_owner_confirmation';
@@ -282,10 +282,10 @@ export type TaskWarning = {
 
 /**
  * POST /v1/tasks with `validate_only: true` (200): every check ran (screening,
- * caps, auto-accept rules) and nothing was created. `would_create` is the owner
+ * caps, auto-accept rules) and nothing was created. `would_create` is the Setter's own
  * task document as it would be recorded, with `id`, `website_url`, `published_at`
  * and `created_at` null, plus `auto_accept_status` when an agent-requested opt-in
- * would wait for the owner. A failed check is the ordinary error (422
+ * would wait for the account holder. A failed check is the ordinary error (422
  * `prohibited_task`, `bounty_above_new_setter_cap`, ...), never a 200.
  */
 export type TaskValidation = {
@@ -314,7 +314,7 @@ export type TaskApplication = {
 
 /**
  * POST /v1/tasks/:id/applications (201). `assignment` is null while the
- * application is pending, or the new contract when the task's human-confirmed
+ * application is pending, or the new contract when the task's confirmed
  * auto-accept took the applicant at once (`auto_accept_outcome` "accepted").
  * `next_step` matches the outcome. `payment` (2026-10-11.6) is present ONLY when the
  * outcome is `accepted`: the hold the Setter's card now carries, in the one shape
@@ -381,7 +381,7 @@ export type Delivery = {
 
 /**
  * Who approved the completion: the Setter (`human`), the Setter's agent key
- * (`ai_agent`, `agent_id` set) or the platform after 48 silent hours (`auto`,
+ * (`ai_agent`, `agent_id` set) or the platform once review_deadline_at passed in silence (`auto`,
  * both ids null). Null on the review while it is not approved.
  */
 export type ApprovedBy = {
@@ -409,7 +409,13 @@ export type CompletionReview = {
   /** How the issue closed: withdrawn / withdrawn_after_response (the Setter's door) or decided (the founder); null while none or open. */
   issue_closed_as?: 'withdrawn' | 'withdrawn_after_response' | 'decided' | null;
   decided_at: string | null;
+  /**
+   * The founder's decision on an issue, null until decided: release_full (nothing back to the Setter), refund_partial or
+   * refund_full (all of it back). The decision is the share of the bounty returned to the Setter, from 0% to 100%, in
+   * proportion to the part of the agreed work missing or not as described; the platform fee is refunded in the same proportion.
+   */
   outcome: string | null;
+  /** refund_partial only: that share in basis points (1-9999, any whole percent; 1000 = 10%, the usual share for a minor objective deviation). */
   adjustment_bps: number | null;
   decision_note: string | null;
 };
@@ -467,21 +473,21 @@ export type ReviewWithPayment = CompletionReview & {
  * (null / [] when empty), so an agent can tell "none" from "not returned".
  *
  * Common to every role: `assignment`, `deliveries`, `review` (with `approved_by`),
- * `payment` (the one shape), `next_step` (what the caller or their owner does
+ * `payment` (the one shape), `next_step` (what the caller or the account holder does
  * next, state-aware; once settled it starts with the task status word, "Approved:" or
  * "Auto-confirmed:"; for an agent key without the authority the next action needs it
- * names the toggle the owner must set), `confirm_hint` (the same text; the name from
+ * names the toggle the account holder must set), `confirm_hint` (the same text; the name from
  * the first build) and `agent_authority` (2026-10-11.6: `{ setter_mode, hunter_mode }`
  * of the agent key in use, null for a human session; what the key may do before it
  * tries, the same as `me`'s `agent.setter_mode` / `hunter_mode`).
  *
- * `confirm_url` is present ONLY when a human-only action is pending for this reader;
+ * `confirm_url` is present ONLY when an action only the account holder can take on the website is pending for this reader;
  * `next_step` says what. Setter: confirm an agent-requested auto-accept
  * (`<website>/task/<id>?confirm=auto_accept`, then also `auto_accept_status` and
  * `auto_accept_confirm_url`), accept an applicant by hand (pending applications on an
  * open task), or confirm the Hunter's cancellation request. Hunter: confirm the
  * Setter's cancellation request. Applicant: never. Without `confirm_url` nothing
- * needs a human; link with the task's `website_url`.
+ * needs a click on the website; link with the task's `website_url`.
  *
  * - Setter: `applications` (each with `auto_accept_skipped_reason`).
  * - Hunter (accepted applicant): `my_application`, the assignment.
@@ -528,7 +534,7 @@ export type Agent = {
   created_at: string | null;
   last_used_at: string | null;
   /**
-   * Where the owner found us (platform 2026-10-30.2): the optional label given when the key was
+   * Where the account holder found us (platform 2026-10-30.2): the optional label given when the key was
    * created on the website or with `POST /v1/me/agents` (`directory`, `cursor`, `vscode`,
    * `claude`, `npm`, `skills`, `other`), never changed; null when none was given, absent on an
    * older deployment. Adoption telemetry only; no tool here sets it.
@@ -550,7 +556,7 @@ export type HunterAccount = {
 };
 
 /**
- * GET /v1/me/money (platform 2026-10-15.11): the owner's ledger on both sides.
+ * GET /v1/me/money (platform 2026-10-15.11): the account's ledger on both sides.
  * Hunter amounts are "earned" or "captured", never "settled" or "paid out";
  * Stripe's own fee is an estimate (stripe_fee_estimated is always true).
  */
@@ -786,14 +792,14 @@ export type TrustLoss = { outstanding_minor: number; effective_cap_minor: number
 export type TrustSetterRows = Record<TrustTier, TrustSetterRowTable>;
 
 /**
- * `me.trust` (platform 2026-10-18.1): the owner's tier on each side. While `mode` is
+ * `me.trust` (platform 2026-10-18.1): the account's tier on each side. While `mode` is
  * `shadow` nothing in it is enforced: the platform fee follows the legacy count ladder
  * (`money.legacy_fee_tiers`), the static caps in `me` and `capabilities.money` apply,
  * and no request is refused because of a tier. When `mode` is `enforce` (trust stage 1,
  * platform 2026-10-19.2) the Hunter's fee is the ladder tier's (`money.fee_tiers`, 20 /
  * 15 / 13 / 10 / 8 / 5 % by lifetime seasoned net earnings), `setter.row` is the
  * Setter's live limit and `hunter.slots` the Hunter's; above a limit the door is a
- * limit request (`request_limit`, `me.limit_requests`). An agent key reads its owner's
+ * limit request (`request_limit`, `me.limit_requests`). An agent key reads its account's
  * block (same user). Tiers are display and limits only; never treat them as a ranking
  * of Hunters or Setters or as eligibility (a Setter may set `min_hunter_tier` on their
  * own task; the platform never does).
@@ -880,15 +886,15 @@ export type Me = {
   new_setter_task_cap_minor?: number;
   max_task_bounty_minor?: number;
   /**
-   * Trust preview (platform 2026-10-18.1, shadow mode): the owner's planned tier on
+   * Trust preview (platform 2026-10-18.1, shadow mode): the account's planned tier on
    * each side. Optional: an older deployment omits it. Display only; nothing enforced.
    */
   trust?: Trust;
-  /** The owner's limit-request document (platform 2026-10-19.2): the open request, the lines in force, pacing, rules. Optional: an older deployment omits it. */
+  /** The account's limit-request document (platform 2026-10-19.2): the open request, the lines in force, pacing, rules. Optional: an older deployment omits it. */
   limit_requests?: LimitRequestSummary;
   /**
-   * Identity (platform 2026-10-30.1, trust stage 2): the owner's Stripe Identity
-   * outcome and whether the gate applies to them. Status only; the owner starts a session on the
+   * Identity (platform 2026-10-30.1, trust stage 2): the account holder's Stripe Identity
+   * outcome and whether the gate applies to them. Status only; the account holder starts a session on the
    * website (human session; an agent key is refused with 403 `human_only`). Optional: an older
    * deployment omits it.
    */
@@ -901,7 +907,7 @@ export type Me = {
  * session was started and no outcome has arrived; `failed`: see `failed_reason`, `not_au_document`
  * when the document was issued outside Australia, else Stripe's `last_error.code`). `enabled` says
  * whether the deployment has Identity on (controls `identity_required_from_tier` set);
- * `required_for_tier` is the gate tier (null = off); `required_now` that the owner's Setter money
+ * `required_for_tier` is the gate tier (null = off); `required_now` that the account's Setter money
  * tier is at or above it and they are not verified; `gate_applies` that the Setter row read right
  * now is the one below the gate (`row_tier_while_unverified`). Pacing: `sessions_30d` of
  * `max_sessions_30d` (2 per account) and `site_sessions_30d` of `site_monthly_cap`;
@@ -1091,9 +1097,9 @@ export type Eligibility = {
 
 /**
  * `agent_actions` member: what an agent key may do, the same in sandbox and live.
- * Accepting an applicant stays a human click on the website unless auto-accept
+ * Accepting an applicant stays the account holder's click on the website, signed in, unless auto-accept
  * was pre-authorised at posting; approving, raising an issue and responding to
- * one are allowed with the owner's standing authority (setter_mode / hunter_mode
+ * one are allowed with the key's standing authority (setter_mode / hunter_mode
  * "always").
  */
 export type AgentActions = {
@@ -1105,15 +1111,15 @@ export type AgentActions = {
   withdraw_issue?: 'agent_allowed' | string;
   /** Since platform 2026-10-17.2: an agent may request (never the Setter's after the delivery: 409 delivery_already_submitted). */
   request_cancellation?: 'agent_allowed' | string;
-  /** Since platform 2026-10-17.2: a human click at confirm_url in sandbox and live alike (403 human_confirmation_required for agent keys). */
+  /** Since platform 2026-10-17.2: the account holder's click at confirm_url, signed in, in sandbox and live alike (403 human_confirmation_required for agent keys). */
   confirm_cancellation?: 'human' | string;
-  /** Since platform 2026-10-19.2: an agent key may file a limit request for its owner (request_limit). */
+  /** Since platform 2026-10-19.2: an agent key may file a limit request for the account holder (request_limit). */
   request_limit?: 'agent_allowed' | string;
 };
 
 /**
  * Limit requests (platform 2026-10-19.2, trust stage 1). The row keys a request names
- * (a Hunter line names slots only), the request document and the owner's summary (GET /v1/me/limit-requests,
+ * (a Hunter line names slots only), the request document and the account's summary (GET /v1/me/limit-requests,
  * also me.limit_requests).
  */
 export type LimitValues = {
@@ -1126,7 +1132,7 @@ export type LimitValues = {
  * (`details.field` names `detail.<key>`; `abn` must be 11 digits passing the ATO checksum, stored
  * without spaces; `contact_phone` digits, spaces, +, ( ) and - only). The MCP tool `request_limit`
  * carries no `detail` (its shape is the platform's), so a level-3 request filed through the tool
- * answers the same 422: the owner files it on the website (Account → Limits). Approved only with the
+ * answers the same 422: the account holder files it on the website (Account → Limits). Approved only with the
  * founder's decision note and, while identity is on, a verified Stripe Identity.
  */
 export type LimitRequestL3Detail = {
@@ -1283,8 +1289,12 @@ export type Capabilities = Record<string, unknown> & {
     min_hunter_tier?: string;
     /** The auto-accept block: `max_bounty_minor`, `max_bounty_rule` (the Setter's per-task cap in enforce mode), `input`, `rule`. */
     auto_accept?: Record<string, unknown>;
-    /** `{ min: 1, max: 96 }` since platform 2026-10-11.2 (at most 4 days); the 48-hour review window after delivery is unchanged. */
+    /** `{ min: 1, max: 96 }` since platform 2026-10-11.2 (at most 4 days); the review window after delivery stayed 48 hours then. */
     delivery_hours?: { min: number; max: number };
+    /**
+     * The Setter review window in hours: since platform 2026-11-12.1 the operator's live setting, 12 to 48, 24 by default (48 before).
+     * A change applies to deliveries submitted after it, so each delivery's `review.review_deadline_at` is authoritative.
+     */
     review_window_hours?: number;
     /** The first-listing review rule in the platform's words (off at launch since 2026-11-10; it says so). */
     new_setter_review?: string;
@@ -1293,7 +1303,7 @@ export type Capabilities = Record<string, unknown> & {
     online_only?: boolean;
   };
   events?: { how?: string; types?: EventTypeInfo[] };
-  /** The rule: confirm_url appears only when the owner has one thing only a human can do on the website; next_step says what. */
+  /** The rule: confirm_url appears only when the account holder has one thing to do on the website, signed in, that an agent key cannot do; next_step says what. */
   confirm_url?: string;
   links?: Record<string, string>;
   /** Which links come from the API origin and which from the public website base. */
@@ -1511,7 +1521,7 @@ export function createApiClient(options: ApiClientOptions) {
 
     // me (API key or session)
     me: () => request<Me>('GET', '/v1/me'),
-    /** Limit requests (platform 2026-10-19.2): file one for the owner (a human session or this key), list them, withdraw a pending one. */
+    /** Limit requests (platform 2026-10-19.2): file one for the account (a human session or this key), list them, withdraw a pending one. */
     createLimitRequest: (input: LimitRequestInput) =>
       request<{ request: LimitRequest; next_step?: string }>('POST', '/v1/me/limit-requests', input),
     myLimitRequests: () => request<LimitRequestSummary>('GET', '/v1/me/limit-requests'),
@@ -1526,7 +1536,7 @@ export function createApiClient(options: ApiClientOptions) {
       request<{ applications: Array<TaskApplication & { task: { id: string; title: string; status: string; bounty_minor: number } }> }>(
         'GET', '/v1/me/applications',
       ),
-    /** The owner's money ledger (GET /v1/me/money, platform 2026-10-15.11). */
+    /** The account's money ledger (GET /v1/me/money, platform 2026-10-15.11). */
     myMoney: () => request<Money>('GET', '/v1/me/money'),
     /** `taskId` narrows the feed to one task (`?task_id=`); the cursor semantics are unchanged. */
     events: (after = 0, limit = 100, taskId?: string | null) =>
@@ -1546,7 +1556,7 @@ export function createApiClient(options: ApiClientOptions) {
       request<OwnerTask>('POST', `/v1/tasks/${encodeURIComponent(taskId)}/auto-accept/disable`),
     /**
      * Confirms an agent-requested auto-accept. Human session only: an agent key is
-     * refused with 403 human_confirmation_required (the owner confirms at confirm_url).
+     * refused with 403 human_confirmation_required (the account holder confirms at confirm_url).
      */
     confirmAutoAccept: (taskId: string) =>
       request<OwnerTask>('POST', `/v1/tasks/${encodeURIComponent(taskId)}/auto-accept/confirm`),
@@ -1554,7 +1564,7 @@ export function createApiClient(options: ApiClientOptions) {
       request<{ applications: TaskApplication[] }>('GET', `/v1/tasks/${encodeURIComponent(taskId)}/applications`),
     /**
      * The application plus `assignment` (null while pending, or the new contract
-     * when the task's human-confirmed auto-accept took the applicant at once),
+     * when the task's confirmed auto-accept took the applicant at once),
      * `auto_accept_outcome`, a matching `next_step` and, only once accepted, `payment`
      * (the hold, the one shape). Never card data or provider identifiers.
      */
@@ -1634,7 +1644,7 @@ export function createApiClient(options: ApiClientOptions) {
       request<{ ok: true }>('POST', `/v1/assignments/${encodeURIComponent(assignmentId)}/cancellation/request`),
 
     /**
-     * Review actions an agent may take with the owner's standing authority, in live
+     * Review actions an agent may take with the key's standing authority, in live
      * mode too (since 2026-10-07): approve captures exactly the amount already
      * authorised at acceptance (setter_mode "always") and returns the review with
      * `payment` (the one shape) and a `next_step` naming the captured amount;
@@ -1660,10 +1670,10 @@ export function createApiClient(options: ApiClientOptions) {
         'POST', `/v1/assignments/${encodeURIComponent(assignmentId)}/issues/withdraw`),
 
     /**
-     * Human steps. The platform refuses these for agent keys in sandbox and live
-     * alike (403 human_confirmation_required): accepting an applicant is a click by
-     * the human owner on the website (`<website>/task/<id>`) unless auto-accept was
-     * pre-authorised at posting, and a cancellation is confirmed by a human. They are
+     * Website steps. The platform refuses these for agent keys in sandbox and live
+     * alike (403 human_confirmation_required): accepting an applicant is a click on the
+     * website by the account holder, signed in (`<website>/task/<id>`), unless auto-accept was
+     * pre-authorised at posting, and a cancellation is confirmed the same way. They are
      * here for human-session callers only; the MCP server and the CLI do not expose them.
      */
     accept: (taskId: string, applicationId: string) =>

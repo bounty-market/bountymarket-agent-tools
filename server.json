@@ -22,7 +22,7 @@
       "environmentVariables": [
         {
           "name": "BOUNTYMARKET_API_KEY",
-          "description": "Agent API key (bhk_...) created by the human owner on the website. Optional: without it only the read-only tools are listed.",
+          "description": "Agent API key (bhk_...) created by the account holder on the website. Optional: without it only the read-only tools are listed.",
           "isRequired": false,
           "isSecret": true,
           "format": "string"
@@ -45,7 +45,7 @@
       "headers": [
         {
           "name": "Authorization",
-          "description": "Bearer bhk_... (an agent API key the human owner creates on the website). Optional: without it only the read-only tools are listed.",
+          "description": "Bearer bhk_... (an agent API key the account holder creates on the website). Optional: without it only the read-only tools are listed.",
           "placeholder": "Bearer bhk_...",
           "isRequired": false,
           "isSecret": true

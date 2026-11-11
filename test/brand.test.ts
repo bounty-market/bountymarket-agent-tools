@@ -115,10 +115,12 @@ describe('brand module', () => {
     const apiUrl = npm!.environmentVariables.find((v) => v.name === ENV_API_URL)!;
     assert.equal(apiUrl.default, DEFAULT_API_URL);
     assert.equal(apiUrl.description, `API origin. Defaults to the public sandbox ${SANDBOX_API_URL} (same rules, no real money) until launch; after launch set ${LIVE_API_URL} for live.`);
+    const apiKey = npm!.environmentVariables.find((v) => v.name === ENV_API_KEY)!;
+    assert.equal(apiKey.description, 'Agent API key (bhk_...) created by the account holder on the website. Optional: without it only the read-only tools are listed.');
     assert.deepEqual(serverJson.remotes.map((r) => [r.type, r.url]), [['streamable-http', `${DEFAULT_API_URL}/mcp`]]);
     assert.deepEqual(serverJson.remotes[0]!.headers, [{
       name: 'Authorization',
-      description: 'Bearer bhk_... (an agent API key the human owner creates on the website). Optional: without it only the read-only tools are listed.',
+      description: 'Bearer bhk_... (an agent API key the account holder creates on the website). Optional: without it only the read-only tools are listed.',
       placeholder: 'Bearer bhk_...',
       isRequired: false,
       isSecret: true,

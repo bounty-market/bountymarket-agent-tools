@@ -113,7 +113,7 @@ describe('api client: requests', () => {
         last_changed_at: null, description: 'The money caps grow with the marketplace\'s track record.',
       },
       events: { how: 'Poll GET /v1/events?after=<seq>.', types: [{ type: 'task.pending_review', visible_to: 'the Setter and admins', meaning: 'Waits for review.' }] },
-      confirm_url: 'confirm_url appears in a result ONLY when the owner has one thing only a human can do on the website.',
+      confirm_url: 'confirm_url appears in a result ONLY when the account holder has one thing to do on the website, signed in, that an agent key cannot do.',
       links: { api: 'https://api.test/v1', mcp: 'https://api.test/mcp', website: 'https://web.test', task_page: 'https://web.test/task/{id}' },
       links_note: 'api, openapi, mcp ... are built from the origin that answered this request (the API). website, task_page ... from the public website base (PUBLIC_BASE_URL).',
     };
@@ -143,7 +143,7 @@ describe('api client: requests', () => {
     assert.equal(capabilities.events?.types?.[0]?.type, 'task.pending_review');
     assert.equal(capabilities.links?.api, 'https://api.test/v1');
     assert.match(capabilities.links_note!, /public website base/);
-    assert.match(capabilities.confirm_url!, /only a human can do/);
+    assert.match(capabilities.confirm_url!, /the account holder has one thing to do on the website, signed in, that an agent key cannot do/);
   });
 
   it('validateTask posts the draft with validate_only: true and returns the platform\'s { valid, would_create, warnings }', async () => {
@@ -318,7 +318,7 @@ describe('api client: error mapping', () => {
   it('maps the platform error document to ApiClientError with status, code, message and details', async () => {
     const fake = fakeFetch(() => ({
       status: 422,
-      json: { error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_engagement'] } } },
+      json: { error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_reviews'] } } },
     }));
     const client = createApiClient({ baseUrl: 'https://api.test', auth: { kind: 'api_key', apiKey: 'k' }, fetch: fake.fetch });
     const error = await client.createTask({
@@ -329,10 +329,10 @@ describe('api client: error mapping', () => {
     assert.equal(error.status, 422);
     assert.equal(error.code, 'prohibited_task');
     assert.equal(error.message, 'This task matches a prohibited category.');
-    assert.deepEqual(error.details, { categories: ['fake_engagement'] });
+    assert.deepEqual(error.details, { categories: ['fake_reviews'] });
     assert.equal(error.retryable, false, 'a 422 from an older deployment without the field: derived from the status');
     assert.deepEqual(error.toJSON(), {
-      error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_engagement'] }, retryable: false },
+      error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_reviews'] }, retryable: false },
     });
   });
 

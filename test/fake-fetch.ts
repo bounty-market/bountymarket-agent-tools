@@ -239,21 +239,22 @@ export const STEP = {
    * Setter, open, no auto-accept, no applications: no confirm_url yet. Also post_task's next_step for such a task.
    * (Mid-sentence the platform lowers only the first letter: "accept is not available over MCP".)
    */
-  setterOpen: 'Open and waiting for applications (application.created events). When one arrives the owner accepts it on the website (confirm_url is '
+  setterOpen: 'Open and waiting for applications (application.created events). When one arrives the account holder accepts it on the website (confirm_url is '
     + 'returned then); accept is not available over MCP or to agent keys. Accepting places a hold of A$25.00 on the saved card. The 24-hour delivery '
     + 'clock starts at acceptance.',
   /** Setter, open, one pending application, no auto-accept: confirm_url is the task page. */
-  setterPending: '1 pending application. The owner accepts one on the website at confirm_url; accept is not available over MCP or to agent keys. '
+  setterPending: '1 pending application. The account holder accepts one on the website at confirm_url; accept is not available over MCP or to agent keys. '
     + 'Accepting places a hold of A$25.00 on the saved card.',
   setterSkipped: '1 pending application did not qualify for auto-accept (agents_not_eligible); accept manually at confirm_url on the website or wait for a '
     + 'qualifying applicant. Accepting places a hold of A$25.00 on the saved card. Accept is not available over MCP or to agent keys. Disable auto-accept '
     + 'with disable_auto_accept (POST /v1/tasks/{id}/auto-accept/disable) if needed.',
   /** Setter, open, agent-requested auto-accept not yet confirmed, no applications: confirm_url is ?confirm=auto_accept. */
   setterOpenAwaiting: 'Confirm auto-accept at confirm_url (one click; auto_accept_status is pending_owner_confirmation and nothing is automatic until then). '
-    + 'Until then the owner accepts applications by hand on the website (confirm_url is returned when one arrives). Accepting places a hold of A$25.00 on '
+    + 'Until then the account holder accepts applications by hand on the website (confirm_url is returned when one arrives). Accepting places a hold of A$25.00 on '
     + 'the saved card. Accept is not available over MCP or to agent keys.',
+  /** Platform 2026-11-12.1: the review window is set per delivery (24 hours by default), so the text points at review.review_deadline_at. */
   setterAssigned: 'The Hunter is working. The delivery will appear here (delivery.submitted event); then approve with approve_delivery (captures the A$25.00 '
-    + 'authorised at acceptance) or raise_issue within 48 hours.',
+    + 'authorised at acceptance) or raise_issue before the review deadline (review.review_deadline_at, set at delivery).',
   setterDelivered: 'Delivered. Approve with approve_delivery (captures exactly the A$25.00 authorised at acceptance; nothing more is charged) or raise_issue '
     + 'before 2026-10-08T02:00:00.000Z; silence auto-confirms.',
   /** Settled (platform 2026-10-11.6): the task status word first; the net is before Stripe's own fee and lands in the Stripe balance, never "settled". */
@@ -262,10 +263,10 @@ export const STEP = {
   applicantNotEligible: 'Your application is pending. This task\'s auto-accept does not include AI agents (auto_accept.allow_agents is false), so the platform '
     + `did not accept it; the Setter decides by hand on the website. ${WATCH} For an immediate start, prefer tasks with auto_accept.active true and allow_agents true.`,
   hunterAssigned: `Deliver with submit_delivery (task_id ${UUID_A} or assignment_id ${UUID_B}) before 2026-10-06T02:00:00.000Z; an undelivered contract expires 2 hours after the deadline without payment.`,
-  hunterSettled: 'Approved: A$21.25 (bounty A$25.00 less the A$3.75 platform fee, before Stripe\'s own processing fee) settles to your owner\'s Stripe balance '
+  hunterSettled: 'Approved: A$21.25 (bounty A$25.00 less the A$3.75 platform fee, before Stripe\'s own processing fee) settles to the account\'s Stripe balance '
     + '(available after Stripe\'s holding period). Nothing to do.',
   /** Hunter while the Setter asked to cancel: the one Hunter-side human action, so confirm_url is the task page. */
-  hunterCancellation: 'The Setter asked to cancel by mutual agreement: the owner confirms at confirm_url (a human click in every mode; the A$25.00 hold is '
+  hunterCancellation: 'The Setter asked to cancel by mutual agreement: the account holder confirms at confirm_url (a human click in every mode; the A$25.00 hold is '
     + `released, no penalty), or ignores it and the contract continues. Deliver with submit_delivery (task_id ${UUID_A} or assignment_id ${UUID_B}) before `
     + '2026-10-06T02:00:00.000Z; an undelivered contract expires 2 hours after the deadline without payment.',
   /** post_task for a new Setter: the review hold, then "follow it at website_url" (no confirm_url). */
@@ -274,12 +275,12 @@ export const STEP = {
   postedHeldForOnlineCheck: `${HELD_SENTENCE} It is not public yet (review_reasons: offline_task; target 24 hours, a target, not a guarantee). ${REVIEW_TAIL} `
     + 'Nothing to do yet; follow it at website_url.',
   /** post_task for a new Setter with an agent-requested auto-accept: the one click first, then the review hold. */
-  postedPendingReviewAwaiting: `Confirm auto-accept at confirm_url (one click; it takes effect when the task opens). ${REVIEW_SENTENCE} Until the owner `
+  postedPendingReviewAwaiting: `Confirm auto-accept at confirm_url (one click; it takes effect when the task opens). ${REVIEW_SENTENCE} Until the account holder `
     + 'confirms, auto_accept_status is pending_owner_confirmation and nothing is automatic; once confirmed, the first qualifying applicant is accepted '
     + 'automatically when the task is open (assignment.created with auto_accept: true).',
   /** submit_delivery / POST deliveries next_step: what settles to the Hunter. */
   delivered: 'Delivered. The Setter has until 2026-10-08T02:00:00.000Z to approve or raise an issue; silence auto-confirms. A$21.25 (the A$25.00 held at '
-    + 'acceptance less your A$3.75 platform fee, before Stripe\'s own processing fee) then settles to your owner\'s Stripe balance (available after Stripe\'s holding period).',
+    + 'acceptance less your A$3.75 platform fee, before Stripe\'s own processing fee) then settles to the account\'s Stripe balance (available after Stripe\'s holding period).',
   /** approve_delivery / POST approve next_step: the status word first, the amount captured, nothing more charged, the net before Stripe's fee. */
   approved: 'Approved: A$25.00 captured; nothing more is charged. The Hunter\'s net (A$21.25, after their A$3.75 platform fee, before Stripe\'s own processing fee) '
     + 'settles to the Hunter\'s Stripe balance (available after Stripe\'s holding period). Nothing to do.',

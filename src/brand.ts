@@ -22,7 +22,7 @@
  * io.github.bounty-market.
  *
  * Until launch the live origin does not answer, so the default API origin and the website the
- * owner is sent to are the public sandbox (same rules, Stripe test mode, no real money). The
+ * account holder is sent to are the public sandbox (same rules, Stripe test mode, no real money). The
  * live origins stay exported (LIVE_API_URL, LIVE_WEBSITE_URL); a release after launch switches
  * DEFAULT_API_URL and WEBSITE_URL back to them.
  */
@@ -83,7 +83,7 @@ export const SANDBOX_API_URL = 'https://api.sandbox.bountymarket.online';
 
 /**
  * The live API origin. It does not answer before launch; a release after launch makes it the
- * default again (DEFAULT_API_URL = LIVE_API_URL). Until then an owner reaches live by setting
+ * default again (DEFAULT_API_URL = LIVE_API_URL). Until then an account holder reaches live by setting
  * BOUNTYMARKET_API_URL to it.
  */
 export const LIVE_API_URL = 'https://api.bountymarket.online';
@@ -99,7 +99,7 @@ export const SANDBOX_WEBSITE_URL = 'https://sandbox.bountymarket.online';
 export const LIVE_WEBSITE_URL = 'https://bountymarket.online';
 
 /**
- * The website owners are sent to (server.json websiteUrl, plugin.json author.url): the sandbox
+ * The website account holders are sent to (server.json websiteUrl, plugin.json author.url): the sandbox
  * website while DEFAULT_API_URL is the sandbox; a release after launch switches it to LIVE_WEBSITE_URL.
  */
 export const WEBSITE_URL = SANDBOX_WEBSITE_URL;

@@ -17,13 +17,13 @@
  * it; `files get <id> --out <path>` downloads one and `files delete <id>` removes one
  * while it is still editable. Binary never travels over MCP.
  *
- * Limits (trust stage 1, platform 2026-10-19.2): `me` prints the owner's tier row and slots
+ * Limits (trust stage 1, platform 2026-10-19.2): `me` prints the account's tier row and slots
  * (enforced when trust.mode is enforce), `limit-request` asks the founder for a higher limit
  * (POST /v1/me/limit-requests, the MCP tool request_limit; level 1 one task, 2 an account
  * line, 3 a long-term line), `limit-requests` lists the requests and the lines in force and
  * `limit-requests withdraw <id>` takes a pending one back. `tasks post --min-hunter-tier`
  * is the Setter's own entry condition for applicants. Trust stage 2 (platform 2026-10-30.1):
- * `me` prints the owner's identity line (Stripe Identity, Setters from the gate tier, started
+ * `me` prints the account's identity line (Stripe Identity, Setters from the gate tier, started
  * on the website only), `capabilities` the identity block; a level-3 request needs the
  * application form, filed on the website (the REST / tool call answers 422 without it); the
  * hints below cover cluster_on_hold, breaker_paused and the identity codes.
@@ -301,7 +301,7 @@ function setterRowText(row: TrustSetterRowTable | null | undefined): string {
   return parts.join(', ');
 }
 
-/** The owner's identity block (me.identity, platform 2026-10-30.1) in one line: status, what it means for the Setter row, how to start. */
+/** The account's identity block (me.identity, platform 2026-10-30.1) in one line: status, what it means for the Setter row, how to start. */
 function identityLine(i: Identity): string {
   const status = i.status === 'verified' ? `verified${i.verified_at ? ` (Australian document, ${i.verified_at})` : ''}`
     : i.status === 'pending' ? 'pending (a session was started; the outcome arrives by webhook within minutes)'
@@ -312,14 +312,14 @@ function identityLine(i: Identity): string {
     ? `; your Setter tier is ${i.required_for_tier ?? '?'} or above, so the ${i.row_tier_while_unverified ?? 'lower'} row applies until verified (fee and badge unchanged)`
     : i.required_now ? `; required from the ${i.required_for_tier ?? '?'} tier` : `; required for Setters from the ${i.required_for_tier ?? '?'} tier and for a level-3 line`;
   const start = i.status === 'verified' ? '' : i.can_start_now
-    ? '; the owner starts it on the website (Account > Identity, Australian driving licence or passport; never an agent key)'
+    ? '; the account holder starts it on the website, signed in (Account > Identity, Australian driving licence or passport; never an agent key)'
     : `; no new session now (${i.sessions_30d} of ${i.max_sessions_30d} per 30 days used${typeof i.site_sessions_30d === 'number' && typeof i.site_monthly_cap === 'number' ? `, site ${i.site_sessions_30d} of ${i.site_monthly_cap}` : ''})`;
   return `${status}${gate}${start}`;
 }
 
 /** A limit request in one line for the limit-request / limit-requests output. */
 function limitRequestLine(r: LimitRequest): string {
-  const filed = r.filed_by === 'ai_agent' ? 'by an agent key' : 'by the owner';
+  const filed = r.filed_by === 'ai_agent' ? 'by an agent key' : 'by the account holder';
   const task = r.task_id ? `, task ${r.task_id}` : '';
   const decided = r.decided_at ? `; decided ${r.decided_at}${r.decision_note ? ` ("${r.decision_note}")` : ''}` : '';
   const valid = r.valid_until ? `; valid until ${r.valid_until}` : '';
@@ -386,7 +386,7 @@ function paymentLine(p: Record<string, any>): string {
 /** `approved_by` in words: who approved the completion (null while the review is not approved). */
 function approvedByText(by: unknown): string | null {
   if (!isRecord(by)) return null;
-  return by.kind === 'auto' ? 'the platform after 48 silent hours' : by.kind === 'ai_agent' ? 'the Setter\'s agent' : 'the Setter';
+  return by.kind === 'auto' ? 'the platform once the review deadline passed in silence' : by.kind === 'ai_agent' ? 'the Setter\'s agent' : 'the Setter';
 }
 
 function reviewLine(r: Record<string, any>): string {
@@ -394,7 +394,7 @@ function reviewLine(r: Record<string, any>): string {
   return `Review: ${r.status}${who ? ` (approved by ${who})` : ''}${r.review_deadline_at ? `, deadline ${r.review_deadline_at}` : ''}`;
 }
 
-const CONFIRM_URL_LABEL = 'confirm_url (one thing only a human can do there; "Next step" says what)';
+const CONFIRM_URL_LABEL = 'confirm_url (the account holder\'s click there, signed in on the website; "Next step" says what)';
 
 /**
  * Whether the capabilities document says the first-listing review is off: a count of exactly 0
@@ -569,15 +569,15 @@ const COMMANDS: Command[] = [
       }
       if (tierRows) {
         io.stdout('Auto-accept: a task of at most the Setter\'s per-task cap (their tier row; a task raised by an approved limit request up to the raised cap) '
-          + 'may accept the first qualifying applicant automatically; a human confirms the opt-in\n');
+          + 'may accept the first qualifying applicant automatically; the account holder confirms the opt-in on the website\n');
       } else if (money.auto_accept_max_bounty_minor !== undefined) {
         io.stdout(`Auto-accept: a task of at most ${formatAud(money.auto_accept_max_bounty_minor)} may accept the first qualifying applicant automatically; `
-          + 'a human confirms the opt-in\n');
+          + 'the account holder confirms the opt-in on the website\n');
       }
       const lr = isRecord(c.limit_requests) ? c.limit_requests : null;
       if (lr && isRecord(lr.pacing)) {
         const ceilings = isRecord(lr.ceilings) ? lr.ceilings : {};
-        io.stdout(`Limit requests: anyone may ask the founder for a higher limit (a human session or the owner's agent key; "${CLI_BIN} limit-request"): `
+        io.stdout(`Limit requests: anyone may ask the founder for a higher limit (a human session or the account's agent key; "${CLI_BIN} limit-request"): `
           + 'level 1 one task, 2 an account line (24 hours by default), 3 a long-term line; '
           + `one open request at a time, ${lr.pacing.max_per_30d ?? 3} per 30 days, ${lr.pacing.declines_for_cooldown ?? 2} declines in a row → a ${lr.pacing.decline_cooldown_days ?? 30}-day wait, `
           + `unanswered for ${lr.pacing.pending_expiry_days ?? 7} days → expired`
@@ -590,7 +590,7 @@ const COMMANDS: Command[] = [
         const pacing = isRecord(identity.pacing) ? identity.pacing : {};
         io.stdout(identity.enabled
           ? `Identity verification: on for Setters from the ${String(identity.required_from_tier)} tier (Stripe Identity, Australian driving licence or passport; until verified such a Setter reads the row of the tier below; `
-            + 'a level-3 line needs it); the owner starts it on the website (Account > Identity; never an agent key); '
+            + 'a level-3 line needs it); the account holder starts it on the website, signed in (Account > Identity; never an agent key); '
             + `${pacing.per_account_30d ?? 2} sessions per account and ${pacing.site_30d ?? '?'} site-wide per 30 days; the platform stores the outcome only\n`
           : 'Identity verification: off on this deployment (no limit depends on it; capabilities.identity.required_from_tier is null)\n');
       }
@@ -613,8 +613,12 @@ const COMMANDS: Command[] = [
       if (tasks.delivery_hours) {
         const max = Number(tasks.delivery_hours.max);
         const days = Number.isFinite(max) && max >= 48 && max % 24 === 0 ? ` (at most ${max / 24} days)` : '';
-        io.stdout(`Delivery: ${tasks.delivery_hours.min}-${tasks.delivery_hours.max} hours${days}; the clock starts at acceptance, not at posting; `
-          + `review window ${tasks.review_window_hours} hours\n`);
+        // The Setter review window is the operator's live setting since platform 2026-11-12.1 (24 hours by default); a delivery
+        // keeps the deadline it got at submission, so its review.review_deadline_at is the authority.
+        const review = typeof tasks.review_window_hours === 'number'
+          ? `; review window ${tasks.review_window_hours} hours (set by the operator; each delivery's review.review_deadline_at is authoritative)` : '';
+        io.stdout(`Delivery: ${tasks.delivery_hours.min}-${tasks.delivery_hours.max} hours${days}; the clock starts at acceptance, not at posting`
+          + `${review}\n`);
       }
       // A median is null below the platform's sample floor: 3 for first applications and listing approvals, 5 for acceptances.
       const samples = isRecord(c.activity?.median_samples_last_30_days) ? c.activity.median_samples_last_30_days as Record<string, unknown> : {};
@@ -711,7 +715,7 @@ const COMMANDS: Command[] = [
       limit: { help: `1-${MAX_SEARCH_LIMIT} (default and maximum ${MAX_SEARCH_LIMIT}; the API caps it)`, integer: true },
       fields: { help: 'full (default) or summary: summary rows carry id, title, bounty, delivery_hours, category, auto_accept, published_at, website_url and setter_is_ai_agent only, a fraction of the bytes; "tasks get" for the ones you open', oneOf: ['full', 'summary'] },
       'allow-agents': { help: 'true: only tasks whose auto-accept admits AI agents; false: only those that do not', oneOf: ['true', 'false'] },
-      'auto-accept-status': { help: 'active: the first qualifying applicant is accepted at once; requested: opted in, awaiting the owner; off: manual accept ("--auto-accept" alone is the "tasks post" switch)', oneOf: ['active', 'requested', 'off'] },
+      'auto-accept-status': { help: 'active: the first qualifying applicant is accepted at once; requested: opted in, awaiting the account holder\'s click; off: manual accept ("--auto-accept" alone is the "tasks post" switch)', oneOf: ['active', 'requested', 'off'] },
       'min-bounty': { help: 'lowest bounty in cents to include (inclusive)', integer: true },
       'max-bounty': { help: 'highest bounty in cents to include (inclusive)', integer: true },
       sort: { help: 'newest (default), bounty_desc or deadline_soonest (shortest delivery_hours first)', oneOf: ['newest', 'bounty_desc', 'deadline_soonest'] },
@@ -737,7 +741,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['tasks', 'get'], positional: ['task_id'], flags: {}, needsKey: false,
-    summary: 'Show one task with its website_url; with a key, your participant view (applications or your application, assignment, deliveries, review, payment, next step) and confirm_url only when a human has something to do there.',
+    summary: 'Show one task with its website_url; with a key, your participant view (applications or your application, assignment, deliveries, review, payment, next step) and confirm_url only when the account holder has a click to make there.',
     run: ({ actions, positional }) => actions.getTask(positional[0]!),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -746,7 +750,7 @@ const COMMANDS: Command[] = [
       io.stdout(`id ${t.id}  status ${t.status}  bounty ${formatAud(t.bounty_minor)}  deliver within ${t.delivery_hours}h  category ${t.category_code}\n`);
       io.stdout(`setter ${t.setter_display_name}${t.setter_is_ai_agent ? ` (agent${t.setter_agent_display_name ? `: ${t.setter_agent_display_name}` : ''})` : ''}\n`);
       if (t.auto_accept?.enabled) {
-        io.stdout(`auto-accept ${t.auto_accept.active ? 'active' : 'requested, awaiting the owner\'s confirmation'}`
+        io.stdout(`auto-accept ${t.auto_accept.active ? 'active' : 'requested, awaiting the account holder\'s confirmation'}`
           + ` (agents ${t.auto_accept.allow_agents === false ? 'not allowed' : 'allowed'}, min settled tasks ${t.auto_accept.min_settled ?? 0})\n`);
       }
       if (typeof t.min_hunter_tier === 'string') io.stdout(`Hunters of tier ${t.min_hunter_tier} or above only (the Setter's own condition, min_hunter_tier; others are refused with 422 min_tier_not_met)\n`);
@@ -786,11 +790,11 @@ const COMMANDS: Command[] = [
         }
         io.stdout(p.review ? `${reviewLine(p.review)}\n` : 'Review: none\n');
         if (p.payment) io.stdout(`Payment: ${paymentLine(p.payment)}\n`);
-        if (p.agent_authority) io.stdout(`Your key: setter_mode ${p.agent_authority.setter_mode}, hunter_mode ${p.agent_authority.hunter_mode} (deny: the owner switches it to Always under Account > Agents)\n`);
+        if (p.agent_authority) io.stdout(`Your key: setter_mode ${p.agent_authority.setter_mode}, hunter_mode ${p.agent_authority.hunter_mode} (deny: the account holder switches it to Always under Account > Agents)\n`);
         io.stdout(`\nNext step: ${p.next_step ?? p.confirm_hint}\n`);
         if (p.confirm_url) io.stdout(`${CONFIRM_URL_LABEL}: ${p.confirm_url}\n`);
-        else io.stdout('No confirm_url: nothing needs a human right now (link with website_url).\n');
-        if (p.auto_accept_confirm_url) io.stdout(`auto_accept_confirm_url (the owner confirms auto-accept here): ${p.auto_accept_confirm_url}\n`);
+        else io.stdout('No confirm_url: nothing needs a click on the website right now (link with website_url).\n');
+        if (p.auto_accept_confirm_url) io.stdout(`auto_accept_confirm_url (the account holder confirms auto-accept here): ${p.auto_accept_confirm_url}\n`);
       }
     },
   },
@@ -811,7 +815,7 @@ const COMMANDS: Command[] = [
       },
       'min-hunter-tier': {
         help: `only Hunters of this trust tier or above may apply (${TRUST_TIERS.join(', ')}; default: anyone): the platform refuses others with 422 min_tier_not_met `
-          + 'and never auto-accepts them. Your owner\'s own condition, shown on the task; the platform itself never filters by tier',
+          + 'and never auto-accepts them. The Setter\'s own condition, shown on the task; the platform itself never filters by tier',
         oneOf: TRUST_TIERS,
       },
       attach: {
@@ -823,14 +827,14 @@ const COMMANDS: Command[] = [
         boolean: true,
       },
       'auto-accept': {
-        help: 'accept the first qualifying applicant automatically (bounty at most the auto-accept cap: your owner\'s per-task cap once the trust ladder is enforced, '
-          + 'A$50 at Bronze; else capabilities money.auto_accept_max_bounty_minor); an agent\'s request waits for the owner\'s confirmation at the printed confirm_url',
+        help: 'accept the first qualifying applicant automatically (bounty at most the auto-accept cap: your account\'s per-task cap once the trust ladder is enforced, '
+          + 'A$50 at Bronze; else capabilities money.auto_accept_max_bounty_minor); an agent\'s request waits for the account holder\'s confirmation at the printed confirm_url',
         boolean: true,
       },
       'auto-accept-min-settled': { help: 'with --auto-accept: settled tasks the applicant must have, 0-100 (default 0)', integer: true },
       'auto-accept-no-agents': { help: 'with --auto-accept: only human applicants are auto-accepted', boolean: true },
     },
-    summary: `Post a task for your owner (setter_mode "always"), optionally with auto-accept; --dry-run checks without posting. It opens at once unless held for a founder check (target ${REVIEW_TARGET_HOURS} h) before Hunters can apply: wording that suggests in-person work (review_reasons, never refused), or a new Setter's first listing while capabilities review.new_setter_first_listings is above 0 (0 at launch).`,
+    summary: `Post a task for the account holder (setter_mode "always"), optionally with auto-accept; --dry-run checks without posting. It opens at once unless held for a founder check (target ${REVIEW_TARGET_HOURS} h) before Hunters can apply: wording that suggests in-person work (review_reasons, never refused), or a new Setter's first listing while capabilities review.new_setter_first_listings is above 0 (0 at launch).`,
     run: ({ actions, flags, io }) => {
       const input = postInput(io, flags);
       return on(flags, 'dry-run') ? actions.validateTask(input) : actions.postTask(input);
@@ -843,7 +847,7 @@ const COMMANDS: Command[] = [
           + `deliver within ${w.delivery_hours}h, category ${w.category_code}.\n`);
         if (w.auto_accept?.enabled) {
           io.stdout(w.auto_accept_status === 'pending_owner_confirmation'
-            ? 'Auto-accept: would be requested and stay off until the owner confirms it on the website.\n'
+            ? 'Auto-accept: would be requested and stay off until the account holder confirms it on the website.\n'
             : 'Auto-accept: would be active once the task is open.\n');
         }
         const wouldHold = reviewReasonsLine(w);
@@ -860,28 +864,28 @@ const COMMANDS: Command[] = [
       if (held) io.stdout(`${held}\n`);
       if (r.task.auto_accept?.enabled) {
         io.stdout(r.auto_accept_status === 'pending_owner_confirmation'
-          ? 'Auto-accept: requested; it stays off until the owner confirms it on the website at the confirm_url below.\n'
+          ? 'Auto-accept: requested; it stays off until the account holder confirms it on the website at the confirm_url below.\n'
           : 'Auto-accept: active; the first qualifying applicant is accepted automatically.\n');
       }
       if (r.task.website_url) io.stdout(`website_url (the task page, for linking): ${r.task.website_url}\n`);
       io.stdout(`${r.next_step}\n`);
-      io.stdout(r.confirm_url ? `${CONFIRM_URL_LABEL}: ${r.confirm_url}\n` : 'No confirm_url: nothing needs a human right now.\n');
+      io.stdout(r.confirm_url ? `${CONFIRM_URL_LABEL}: ${r.confirm_url}\n` : 'No confirm_url: nothing needs a click on the website right now.\n');
     },
   },
   {
     path: ['tasks', 'auto-accept', 'disable'], positional: ['task_id'], flags: {}, needsKey: true,
-    summary: 'Withdraw the auto-accept opt-in on your owner\'s task (setter_mode "always"); pending applications stay pending for a manual accept (confirm_url is then printed).',
+    summary: 'Withdraw the auto-accept opt-in on your task (setter_mode "always"); pending applications stay pending for a manual accept (confirm_url is then printed).',
     run: ({ actions, positional }) => actions.disableAutoAccept(positional[0]!),
     print(result, io) {
       const r = result as Record<string, any>;
       io.stdout(`Auto-accept ${r.task.auto_accept?.enabled ? 'is still on' : 'is off'} for task ${r.task.id} (${r.task.status}).\n${r.next_step}\n`);
-      io.stdout(r.confirm_url ? `${CONFIRM_URL_LABEL}: ${r.confirm_url}\n` : 'No confirm_url: nothing needs a human right now.\n');
+      io.stdout(r.confirm_url ? `${CONFIRM_URL_LABEL}: ${r.confirm_url}\n` : 'No confirm_url: nothing needs a click on the website right now.\n');
     },
   },
   {
     // Platform 2026-11-10: the MCP tool cancel_task; a repeat answers already_cancelled true.
     path: ['tasks', 'cancel'], positional: ['task_id'], flags: {}, needsKey: true,
-    summary: 'Cancel your owner\'s open or pending_review task (setter_mode "always"): off the board, pending applications closed, no money moved. '
+    summary: 'Cancel your open or pending_review task (setter_mode "always"): off the board, pending applications closed, no money moved. '
       + 'A repeat changes nothing (already_cancelled). With a Hunter on it, use cancel-request instead.',
     run: ({ actions, positional }) => actions.cancelTask(positional[0]!),
     print(result, io) {
@@ -892,19 +896,19 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['tasks', 'mine'], positional: [], flags: {}, needsKey: true,
-    summary: 'Tasks your owner posted, all statuses (including pending_review), and what only the owner can click on each (pending_owner_action).',
+    summary: 'Tasks your account posted, all statuses (including pending_review), and what only the account holder can click on each (pending_owner_action).',
     run: ({ actions }) => actions.listMyTasks(),
     print(result, io) {
       const tasks = (result as { tasks: Array<ListedTask & { pending_owner_action?: { kind: string; confirm_url: string } | null }> }).tasks;
       printTasks(tasks, io);
       for (const t of tasks) {
-        if (t.pending_owner_action) io.stdout(`Owner action on ${t.id}: ${t.pending_owner_action.kind} at ${t.pending_owner_action.confirm_url}\n`);
+        if (t.pending_owner_action) io.stdout(`Account holder action on ${t.id}: ${t.pending_owner_action.kind} at ${t.pending_owner_action.confirm_url}\n`);
       }
     },
   },
   {
     path: ['assignments'], positional: [], flags: {}, needsKey: true,
-    summary: 'Assignments where your owner is the Hunter, with deadline, fee (0% during a fee holiday) and net amount.',
+    summary: 'Assignments where your account is the Hunter, with deadline, fee (0% during a fee holiday) and net amount.',
     run: ({ actions }) => actions.listMyAssignments(),
     print(result, io) {
       const r = result as { assignments: Array<Record<string, any>> };
@@ -920,7 +924,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['money'], positional: [], flags: {}, needsKey: true,
-    summary: 'Your owner\'s money on both sides: every hold, review, capture and refund, the fee tier and the Stripe account flags (GET /v1/me/money).',
+    summary: 'Your account\'s money on both sides: every hold, review, capture and refund, the fee tier and the Stripe account flags (GET /v1/me/money).',
     run: ({ actions }) => actions.getMoney(),
     print(result, io) {
       const m = result as Money;
@@ -943,7 +947,7 @@ const COMMANDS: Command[] = [
         + ` (${h.totals.awaiting_review_count}); held, not yet delivered ${formatAud(h.totals.held_now_minor)} (${h.totals.held_count}).\n`);
       io.stdout(h.stripe
         ? `Stripe: charges ${h.stripe.charges_enabled ? 'enabled' : 'disabled'}, payouts ${h.stripe.payouts_enabled ? 'enabled' : 'disabled'}; ${h.stripe.dashboard_url}\n`
-        : 'Stripe: no connected account (the owner sets up payouts on the website).\n');
+        : 'Stripe: no connected account (the account holder sets up payouts on the website).\n');
       io.stdout(`${h.earliest_payout_hint}\n`);
       if (h.rows.length) {
         table([
@@ -971,7 +975,7 @@ const COMMANDS: Command[] = [
   {
     path: ['apply'], positional: ['task_id'], needsKey: true,
     flags: { message: { help: 'optional note to the Setter (max 1000 characters); disclose that you are an agent' } },
-    summary: 'Apply to an open task for your owner (hunter_mode "always"; check "me" first: agent.hunter_mode must be always, or the owner must set Apply and deliver as me = Always on the website); prints the auto-accept outcome and, once accepted, the hold (payment).',
+    summary: 'Apply to an open task for the account holder (hunter_mode "always"; check "me" first: agent.hunter_mode must be always, or the account holder must set Apply and deliver as me = Always on the website); prints the auto-accept outcome and, once accepted, the hold (payment).',
     run: ({ actions, positional, flags }) => actions.applyToTask(positional[0]!, str(flags, 'message')),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -983,7 +987,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['withdraw'], positional: ['application_or_task_id'], flags: {}, needsKey: true,
-    summary: 'Withdraw your owner\'s pending application (hunter_mode "always"): give the application id (from "apply") or the task id; an accepted application is an assignment and cannot be withdrawn here. Prints the withdrawn application and next_step; you may apply again while the task is open.',
+    summary: 'Withdraw your pending application (hunter_mode "always"): give the application id (from "apply") or the task id; an accepted application is an assignment and cannot be withdrawn here. Prints the withdrawn application and next_step; you may apply again while the task is open.',
     run: ({ actions, positional }) => actions.withdrawApplication(positional[0]!),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -993,8 +997,8 @@ const COMMANDS: Command[] = [
   {
     path: ['upload'], positional: ['path'], needsKey: true,
     flags: {
-      assignment: { help: 'delivery file: the assignment id (your owner is the Hunter, assignment active); then "deliver ... --attach <file id>"' },
-      task: { help: 'brief file for a task your owner already posted (not yet settled): the task id; applicants and participants can download it' },
+      assignment: { help: 'delivery file: the assignment id (your account is the Hunter, assignment active); then "deliver ... --attach <file id>"' },
+      task: { help: 'brief file for a task your account already posted (not yet settled): the task id; applicants and participants can download it' },
       name: { help: 'display filename with its extension (default: the file\'s own name); never used as the storage key' },
       'content-type': { help: 'declared Content-Type (default: from the extension; application/octet-stream is accepted); must match the extension' },
     },
@@ -1026,7 +1030,7 @@ const COMMANDS: Command[] = [
         repeat: true,
       },
     },
-    summary: `Submit a delivery (hunter_mode "always"; check "me" first: agent.hunter_mode must be always). Give the assignment id (from "assignments" or the assignment.created event) or the task id of a task where your owner is the accepted Hunter. Prints the review, content_digest (${CONTENT_DIGEST_RULE}), the payment and next_step.`,
+    summary: `Submit a delivery (hunter_mode "always"; check "me" first: agent.hunter_mode must be always). Give the assignment id (from "assignments" or the assignment.created event) or the task id of a task where your account is the accepted Hunter. Prints the review, content_digest (${CONTENT_DIGEST_RULE}), the payment and next_step.`,
     run: ({ actions, positional, flags, io }) => actions.submitDelivery(
       positional[0]!, textOrFile(io, flags, 'summary')!, list(flags, 'link'),
       uuidList(flags, 'attach', UPLOAD_RULES.max_files_per_delivery, `a file id from "${CLI_BIN} upload --assignment <id> <path>"`),
@@ -1076,7 +1080,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['approve'], positional: ['task_id'], flags: {}, needsKey: true,
-    summary: 'Approve the delivery on your owner\'s task (setter_mode "always"; check "me" first: agent.setter_mode must be always, or the owner must set Post tasks as me = Always on the website): captures exactly the amount authorised at acceptance; prints the payment (the fee is the Hunter\'s; the net is before Stripe\'s own fee and settles to the Hunter\'s Stripe balance).',
+    summary: 'Approve the delivery on your task (setter_mode "always"; check "me" first: agent.setter_mode must be always, or the account holder must set Post tasks as me = Always on the website): captures exactly the amount authorised at acceptance; prints the payment (the fee is the Hunter\'s; the net is before Stripe\'s own fee and settles to the Hunter\'s Stripe balance).',
     run: ({ actions, positional }) => actions.approveDelivery(positional[0]!),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -1093,7 +1097,7 @@ const COMMANDS: Command[] = [
       text: { help: 'what is wrong, in plain words, 20-4000 characters (shown to the Hunter); or --text-file' },
       'text-file': { help: 'read the text from this file, or from stdin with -', path: true },
     },
-    summary: 'Raise an issue on the delivery within the 48-hour review window (setter_mode "always").',
+    summary: 'Raise an issue on the delivery before the review deadline (review.review_deadline_at, 24 hours after delivery by default; setter_mode "always").',
     run: ({ actions, positional, flags, io }) => actions.raiseIssue(positional[0]!, str(flags, 'type')!, textOrFile(io, flags, 'text')!),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -1103,10 +1107,10 @@ const COMMANDS: Command[] = [
   {
     path: ['respond'], positional: ['task_id'], needsKey: true,
     flags: {
-      text: { help: 'your owner\'s response to the open issue, 1-4000 characters; or --text-file' },
+      text: { help: 'your response to the open issue, 1-4000 characters; or --text-file' },
       'text-file': { help: 'read the response from this file, or from stdin with -', path: true },
     },
-    summary: 'Respond once to the issue raised on your owner\'s assignment, within 24 hours (hunter_mode "always").',
+    summary: 'Respond once to the issue raised on your assignment, within 24 hours (hunter_mode "always").',
     run: ({ actions, positional, flags, io }) => actions.respondToIssue(positional[0]!, textOrFile(io, flags, 'text')!),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -1114,10 +1118,10 @@ const COMMANDS: Command[] = [
     },
   },
   {
-    // Platform 2026-11-10: the MCP tool request_cancellation; confirming stays the other owner's click on the website.
+    // Platform 2026-11-10: the MCP tool request_cancellation; confirming stays the other side's click on the website.
     path: ['cancel-request'], positional: ['task_id'], flags: {}, needsKey: true,
-    summary: 'Ask for a mutual cancellation of the accepted assignment on this task (the authority of your owner\'s side must be "always"). '
-      + 'Nothing changes until the other side\'s owner confirms on the website; then the hold is released or a captured charge refunded in full.',
+    summary: 'Ask for a mutual cancellation of the accepted assignment on this task (the authority of your side must be "always"). '
+      + 'Nothing changes until the other side confirms on the website, signed in; then the hold is released or a captured charge refunded in full.',
     run: ({ actions, positional }) => actions.requestCancellation({ taskId: positional[0]! }),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -1126,7 +1130,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['withdraw-issue'], positional: ['task_id'], flags: {}, needsKey: true,
-    summary: 'Withdraw your owner\'s open issue on the delivery (setter_mode "always"), with or without the Hunter\'s response; the 48-hour review resumes with at least 24 hours left. Nothing is captured.',
+    summary: 'Withdraw your open issue on the delivery (setter_mode "always"), with or without the Hunter\'s response; the review resumes with at least 24 hours left. Nothing is captured.',
     run: ({ actions, positional }) => actions.withdrawIssue(positional[0]!),
     print(result, io) {
       const r = result as Record<string, any>;
@@ -1142,7 +1146,7 @@ const COMMANDS: Command[] = [
       limit: { help: `1-${MAX_EVENTS_LIMIT} (default 100; the API caps it)`, integer: true },
       task: { help: 'only this task\'s events (uuid); the cursor still advances over them' },
     },
-    summary: `Poll your owner's event feed; --task follows one task only. Wait poll_after_seconds between polls and fetch the task once after assignment.created. Events that end an assignment (and free a Hunter slot): ${ASSIGNMENT_ENDING_EVENT_TYPES.join(', ')}.`,
+    summary: `Poll your account's event feed; --task follows one task only. Wait poll_after_seconds between polls and fetch the task once after assignment.created. Events that end an assignment (and free a Hunter slot): ${ASSIGNMENT_ENDING_EVENT_TYPES.join(', ')}.`,
     run: ({ actions, flags }) => {
       const taskId = str(flags, 'task');
       if (taskId !== undefined && !UUID_RE.test(taskId)) throw new UsageError('--task must be a task id (uuid)');
@@ -1157,7 +1161,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['me'], positional: [], flags: {}, needsKey: true,
-    summary: 'Who the key acts for: owner, agent authority, onboarding status.',
+    summary: 'Who the key acts for: the account, agent authority, onboarding status.',
     run: ({ actions }) => actions.me(),
     print(result, io) {
       const m = result as Me;
@@ -1224,7 +1228,7 @@ const COMMANDS: Command[] = [
           + (lr.pacing.cooldown_until ? `; declined twice: wait until ${lr.pacing.cooldown_until}` : lr.pacing.can_request_now ? '' : lr.pacing.next_allowed_at ? `; next allowed ${lr.pacing.next_allowed_at}` : '')
           + ` ("${CLI_BIN} limit-requests" for the list, "${CLI_BIN} limit-request" to file one).\n`);
       }
-      // Identity (platform 2026-10-30.1, trust stage 2): the owner's Stripe Identity outcome; started on the website only (human session). An older deployment omits it.
+      // Identity (platform 2026-10-30.1, trust stage 2): the account holder's Stripe Identity outcome; started on the website only (human session). An older deployment omits it.
       const idn = m.identity;
       if (idn && typeof idn.status === 'string') {
         io.stdout(`Identity: ${identityLine(idn)}\n`);
@@ -1236,12 +1240,12 @@ const COMMANDS: Command[] = [
     flags: {
       side: { help: 'setter or hunter: whose limits (the key needs that side\'s authority)', required: true, oneOf: ['setter', 'hunter'] },
       level: {
-        help: '1 = one task (Setter side; with --task, or without it the line binds to your owner\'s next listing above the per-task cap; dies with the task or after 7 days), '
+        help: '1 = one task (Setter side; with --task, or without it the line binds to your account\'s next listing above the per-task cap; dies with the task or after 7 days), '
           + '2 = an account line (up to the next tier\'s row by default; 24 hours by default, 7 or 30 days at the founder\'s choice), 3 = a long-term Contractor line (bespoke numbers, re-reviewed every 90 days; '
-          + 'since platform 2026-10-30.1 it carries an application form the owner fills on the website, so this command answers 422 limit_request_invalid { field: detail } at level 3)',
+          + 'since platform 2026-10-30.1 it carries an application form the account holder fills on the website, so this command answers 422 limit_request_invalid { field: detail } at level 3)',
         required: true, integer: true,
       },
-      task: { help: 'level 1: one of your owner\'s live tasks (uuid)' },
+      task: { help: 'level 1: one of your live tasks (uuid)' },
       reason: { help: 'what it is for and why the tier row does not fit, 20-2000 characters (the founder reads it); or --reason-file' },
       'reason-file': { help: 'read the reason from this file, or from stdin with -', path: true },
       'per-task-cap': { help: 'Setter: the largest single bounty asked for, AUD cents (level 1: at most 3 x the tier\'s per-task cap or A$600, whichever is more)', integer: true },
@@ -1251,9 +1255,9 @@ const COMMANDS: Command[] = [
       'posts-per-day': { help: 'Setter: listings per rolling 24 hours', integer: true },
       'cooling-bypass': { help: 'Setter: lift the cooling after settlement where your tier row sets one (cooling_days; 0 at every tier today) for the task or the account', boolean: true },
     },
-    summary: 'Ask the founder for a higher limit for your owner (POST /v1/me/limit-requests; the MCP tool request_limit). Everyone may ask; the founder may decline; approvals are short by default (24 hours) '
+    summary: 'Ask the founder for a higher limit for your account (POST /v1/me/limit-requests; the MCP tool request_limit). Everyone may ask; the founder may decline; approvals are short by default (24 hours) '
       + 'and revoked by any open card dispute (and, since platform 2026-10-30.1, a lost one, an auto-accepted assignment that expires undelivered, or a changed card / payout bank). '
-      + 'One pending request at a time, three per 30 days; the decision arrives as limit_request.approved / declined events and the owner is emailed. '
+      + 'One pending request at a time, three per 30 days; the decision arrives as limit_request.approved / declined events and the account holder is emailed. '
       + 'Name at least one limit: --per-task-cap, --total-cap, --daily-cap, --slots, --posts-per-day or --cooling-bypass.',
     run: ({ actions, flags, io }) => {
       const level = num(flags, 'level')!;
@@ -1288,7 +1292,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['limit-requests', 'withdraw'], positional: ['request_id'], flags: {}, needsKey: true,
-    summary: 'Withdraw your owner\'s pending limit request (DELETE /v1/me/limit-requests/<id>); only a pending one, and it still counts toward the three filings per 30 days.',
+    summary: 'Withdraw your pending limit request (DELETE /v1/me/limit-requests/<id>); only a pending one, and it still counts toward the three filings per 30 days.',
     run: ({ actions, positional }) => {
       if (!UUID_RE.test(positional[0]!)) throw new UsageError(`<request_id> must be a limit request id (uuid) from "${CLI_BIN} limit-requests"`);
       return actions.withdrawLimitRequest(positional[0]!);
@@ -1300,7 +1304,7 @@ const COMMANDS: Command[] = [
   },
   {
     path: ['limit-requests'], positional: [], flags: {}, needsKey: true,
-    summary: 'Your owner\'s limit requests (GET /v1/me/limit-requests, also me.limit_requests): the open one, the lines in force and what they raise, the pacing (used of three per 30 days, cooldown), the latest requests with their outcome.',
+    summary: 'Your account\'s limit requests (GET /v1/me/limit-requests, also me.limit_requests): the open one, the lines in force and what they raise, the pacing (used of three per 30 days, cooldown), the latest requests with their outcome.',
     run: ({ actions }) => actions.myLimitRequests(),
     print(result, io) {
       const d = result as LimitRequestSummary;
@@ -1369,7 +1373,7 @@ export const USAGE = [
   'Environment:',
   `    BOUNTYMARKET_API_URL   API origin (default ${DEFAULT_API_URL}, the public sandbox: same rules, no real money;`,
   `                           after launch set ${LIVE_API_URL} for live)`,
-  '    BOUNTYMARKET_API_KEY   agent API key (bhk_...) created by the human owner on the website;',
+  '    BOUNTYMARKET_API_KEY   agent API key (bhk_...) created by the account holder on the website;',
   '                           needed by tasks post, tasks auto-accept disable, tasks cancel, tasks mine, assignments, apply,',
   '                           withdraw, upload, deliver, files get, files delete, approve, issue, respond, cancel-request,',
   '                           withdraw-issue, events, money, me, limit-request and limit-requests',
@@ -1388,16 +1392,16 @@ export const USAGE = [
   '(capabilities money.fee_holiday_until) it is 0% for every Hunter. Posting limits are the Setter\'s tier row once enforced (slots, money in',
   'flight, per task, per 24 hours; "me" prints it) and Hunter slots by tier; above a limit, "limit-request" asks the founder (one task, an',
   'account line for 24 hours by default, or a long-term line); the founder may decline. A Setter may set --min-hunter-tier on their own task.',
-  'No command chooses an amount or a payee. Accepting an applicant is a click by the human owner on the website',
-  'at the confirm_url this tool prints (<website>/task/<task_id>), in the sandbox exactly as in live mode, unless',
-  'auto-accept was pre-authorised when the task was posted; approve releases exactly the amount the owner already',
-  `authorised at acceptance. ${CONFIRM_URL_RULE} Without confirm_url nothing needs a human; every task carries`,
+  'No command chooses an amount or a payee. Accepting an applicant is a click on the website by the account holder,',
+  'signed in, at the confirm_url this tool prints (<website>/task/<task_id>), in the sandbox exactly as in live mode, unless',
+  'auto-accept was pre-authorised when the task was posted; approve releases exactly the amount the account holder already',
+  `authorised at acceptance. ${CONFIRM_URL_RULE} Without confirm_url nothing needs a click on the website; every task carries`,
   'website_url for linking. Every payment block has one shape: status, authorised_minor, captured_minor, refunded_minor,',
   'hunter_fee_minor, hunter_net_minor, currency (the fee is the Hunter\'s; the Setter pays exactly authorised_minor).',
   'hunter_net_minor is the bounty less the platform fee, BEFORE Stripe\'s own processing fee: it settles to the Hunter\'s Stripe',
-  'balance and is available after Stripe\'s holding period. Never tell an owner an exact amount in their bank, and never say',
+  'balance and is available after Stripe\'s holding period. Never tell the account holder an exact amount in their bank, and never say',
   '"settled" while Stripe may still hold it. Before acting, run "me": agent.setter_mode / hunter_mode must be "always" for the',
-  'side you act on (tasks get shows the same as participant.agent_authority); "deny" means the owner must set "Post tasks as me"',
+  'side you act on (tasks get shows the same as participant.agent_authority); "deny" means the account holder must set "Post tasks as me"',
   'or "Apply and deliver as me" to Always under Account > Agents on the website. Once a task is approved or auto-confirmed,',
   'next_step starts with that word; task.status approved = assignment.status completed = review.status approved.',
   '',
@@ -1464,24 +1468,24 @@ function coerceFlags(command: Command, raw: Record<string, string[] | true>): Fl
 }
 
 /** Every Setter tier-limit refusal (trust stage 1) ends at the same door: a limit request. */
-const SETTER_LIMIT_HINT = 'Your owner\'s Setter tier row is the limit ("me": trust.setter.row; details carry the numbers, the next tier\'s row and request_route). Post within it, wait for a live task '
+const SETTER_LIMIT_HINT = 'Your account\'s Setter tier row is the limit ("me": trust.setter.row; details carry the numbers, the next tier\'s row and request_route). Post within it, wait for a live task '
   + `to settle, or ask for a higher limit: "${CLI_BIN} limit-request --side setter --level 1 --task <id> --per-task-cap <cents> --reason ..." raises one task, `
   + '"--level 2" an account line (24 hours by default; up to the next tier\'s row); the founder decides, normally within 24 hours, and may decline.';
 
 const ERROR_HINTS: Record<string, string> = {
-  invalid_api_key: 'Check BOUNTYMARKET_API_KEY: the owner can see the key prefix and revoke or recreate keys on the website.',
-  agent_revoked: 'This key was revoked. The owner can create a new one on the website.',
-  agent_setter_authority_denied: 'The owner must set this agent\'s setter_mode to "always" (Post tasks as me = Always under Account > Agents on the website) before it can post tasks, approve deliveries or raise issues; "me" shows the current value.',
-  agent_hunter_authority_denied: 'The owner must set this agent\'s hunter_mode to "always" (Apply and deliver as me = Always under Account > Agents on the website) before it can apply, deliver or respond to issues; "me" shows the current value.',
-  terms_not_accepted: 'The owner must accept the current terms (and attest being over 18) on the website.',
-  stripe_onboarding_required: 'The owner must finish Stripe onboarding on the website before applying to tasks (Hunters are in Australia).',
-  abn_or_hobby_statement_required: 'The owner must declare an ABN or a hobby statement on the website before applying to tasks.',
+  invalid_api_key: 'Check BOUNTYMARKET_API_KEY: the account holder can see the key prefix and revoke or recreate keys on the website.',
+  agent_revoked: 'This key was revoked. The account holder can create a new one on the website.',
+  agent_setter_authority_denied: 'The account holder must set this agent\'s setter_mode to "always" (Post tasks as me = Always under Account > Agents on the website) before it can post tasks, approve deliveries or raise issues; "me" shows the current value.',
+  agent_hunter_authority_denied: 'The account holder must set this agent\'s hunter_mode to "always" (Apply and deliver as me = Always under Account > Agents on the website) before it can apply, deliver or respond to issues; "me" shows the current value.',
+  terms_not_accepted: 'The account holder must accept the current terms (and attest being over 18) on the website.',
+  stripe_onboarding_required: 'The account holder must finish Stripe onboarding on the website before applying to tasks (Hunters are in Australia).',
+  abn_or_hobby_statement_required: 'The account holder must declare an ABN or a hobby statement on the website before applying to tasks.',
   prohibited_task: 'The text matched a prohibited-task category; see details.categories. Do not rephrase to evade the screen.',
   bounty_below_minimum: 'The minimum bounty is A$10 (1000 cents).',
-  self_dealing_blocked: 'The owner cannot be on both sides of a task.',
-  human_confirmation_required: 'A human step, in the sandbox exactly as in live mode: the owner does it on the website at the confirm_url a result '
+  self_dealing_blocked: 'One account cannot be on both sides of a task.',
+  human_confirmation_required: 'A step for the account holder, signed in on the website, in the sandbox exactly as in live mode: they take it at the confirm_url a result '
     + 'carries while it is pending (the task page, <website>/task/<task_id>): accepting an applicant, confirming auto-accept or confirming a cancellation.',
-  auto_accept_bounty_above_cap: 'Auto-accept is only for bounties at or below the cap: your owner\'s per-task cap once the trust ladder is enforced ("me": trust.setter.row.auto_accept_cap_minor; details.cap_minor), '
+  auto_accept_bounty_above_cap: 'Auto-accept is only for bounties at or below the cap: your account\'s per-task cap once the trust ladder is enforced ("me": trust.setter.row.auto_accept_cap_minor; details.cap_minor), '
     + `else capabilities money.auto_accept_max_bounty_minor (A$50 at launch). Lower the bounty, post without --auto-accept, or ask for a higher limit ("${CLI_BIN} limit-request").`,
   // Trust stage 1 (platform 2026-10-19.2): the Setter's tier row and the Hunter's tier slots are the limits; the door is a limit request.
   setter_task_cap_exceeded: SETTER_LIMIT_HINT,
@@ -1496,36 +1500,36 @@ const ERROR_HINTS: Record<string, string> = {
   invalid_min_hunter_tier: `--min-hunter-tier must be one of ${TRUST_TIERS.join(', ')}, or left out (anyone may apply).`,
   limit_request_open_exists: `One pending request at a time: wait for the decision ("${CLI_BIN} limit-requests" shows it; limit_request.approved / declined events), or withdraw it with `
     + `"${CLI_BIN} limit-requests withdraw <request_id>" (details.request_id) and file the right one.`,
-  limit_request_pace: 'At most three filings per 30 days, withdrawn ones included; details.next_allowed_at says when the next is allowed. File one request for everything the owner needs.',
+  limit_request_pace: 'At most three filings per 30 days, withdrawn ones included; details.next_allowed_at says when the next is allowed. File one request for everything the account needs.',
   limit_request_cooldown: 'Two declines in a row start a 30-day wait (details.until). Meanwhile the ladder itself raises the row: "me" shows what the next tier needs.',
   limit_request_reason_required: '--reason must be 20 to 2000 characters: what the task or the line is for and why the tier row does not fit; the founder reads it.',
   limit_request_invalid: 'Check the keys for the side (details.keys): a Hunter line names --slots only; a Setter line --per-task-cap, --total-cap, --daily-cap, --slots, --posts-per-day, --cooling-bypass. '
     + 'Level 1 is Setter-only and takes --task; levels 2 and 3 take none. details.field "detail" (or detail.<key>): a level-3 Contractor line carries an application form '
-    + '(legal name, ABN, use case, expected spend, a contact phone, a verification call) that the owner fills on the website (Account > Limits); this command and the MCP tool cannot send it.',
+    + '(legal name, ABN, use case, expected spend, a contact phone, a verification call) that the account holder fills on the website (Account > Limits); this command and the MCP tool cannot send it.',
   limit_request_level_rule: 'details.rule names the level rule: l1_setter_only (Hunters file --level 2 --slots), l1_max / l1_identity_required (the one-task ceiling: 3 x the per-task cap or A$600; '
-    + 'above it the founder confirms the owner\'s identity by hand, or the owner\'s Stripe Identity is verified: "me" prints the identity line), l2_duration / l2_long_duration_gate '
+    + 'above it the founder confirms the account holder\'s identity by hand, or the account holder\'s Stripe Identity is verified: "me" prints the identity line), l2_duration / l2_long_duration_gate '
     + '(30-day lines need Gold or an account over 90 days), l2_renewals_exhausted (then level 3 or the ladder itself).',
   // Trust stage 2 (platform 2026-10-30.1): the hold gate (card cluster on hold after an early fraud warning; the marketplace breaker) and Stripe Identity.
   cluster_on_hold: 'The payer\'s bank flagged a card saved on the Setter\'s account (early fraud warning), so new card holds for it are refused until details.hold_until (details.hold_days days). '
-    + 'Nothing was assigned: wait, or the owner saves a different card on the website (Account > Payment); the founder can lift the hold earlier if the flag is a mistake. Tell the owner the date.',
+    + 'Nothing was assigned: wait, or the account holder saves a different card on the website (Account > Payment); the founder can lift the hold earlier if the flag is a mistake. Tell the account holder the date.',
   breaker_paused: 'New card holds for Bronze-tier Setters are paused marketplace-wide (an automatic safety pause, details.rule tripped at details.tripped_at; the founder is reviewing). '
     + 'Retry later: the pause lifts when it is cleared; applications already received stay pending and Setters above Bronze are not paused. Nothing to fix on your side.',
-  identity_not_available: 'Identity verification is off on this deployment ("me": identity.enabled false): no limit depends on it; the owner\'s limits follow the tier row meanwhile.',
-  identity_already_verified: 'The owner\'s identity is already verified (details.verified_at); nothing to do.',
+  identity_not_available: 'Identity verification is off on this deployment ("me": identity.enabled false): no limit depends on it; the account\'s limits follow the tier row meanwhile.',
+  identity_already_verified: 'The account holder\'s identity is already verified (details.verified_at); nothing to do.',
   identity_session_limit: 'Identity sessions are paced: 2 per account and identity_monthly_cap site-wide per 30 days (details.scope account | site, used, max). Wait until details.next_allowed_at '
     + '(Retry-After carries the seconds); a session already started can still be finished on the website.',
-  identity_required_for_level: 'A level-3 Contractor line is approved only once the owner\'s Stripe Identity is verified (details.identity_status). The owner verifies on the website '
-    + '(Account > Identity: an Australian driving licence or passport, live capture; a human session, never an agent key); the founder decides afterwards.',
-  human_only: 'This step is the owner\'s own, on the website (for example starting identity verification): an agent key is never accepted for it.',
+  identity_required_for_level: 'A level-3 Contractor line is approved only once the account holder\'s Stripe Identity is verified (details.identity_status). The account holder verifies on the website '
+    + '(Account > Identity: an Australian driving licence or passport, live capture; signed in, never with an agent key); the founder decides afterwards.',
+  human_only: 'This step is the account holder\'s own, signed in on the website (for example starting identity verification): an agent key is never accepted for it.',
   limit_request_not_pending: `Only a pending request can be withdrawn; "${CLI_BIN} limit-requests" shows its status.`,
-  limit_request_not_found: `No such limit request for this owner; "${CLI_BIN} limit-requests" lists them.`,
+  limit_request_not_found: `No such limit request on this account; "${CLI_BIN} limit-requests" lists them.`,
   auto_accept_min_settled_invalid: '--auto-accept-min-settled must be between 0 and 100.',
   auto_accept_not_enabled: 'This task did not opt in to auto-accept, or the opt-in was withdrawn.',
   not_task_setter: 'Only the task\'s Setter (or an agent acting for them) can do this.',
-  assignment_not_found: `No live assignment for your owner here. deliver takes the assignment id (from "${CLI_BIN} assignments" or the `
-    + 'assignment.created event) or the id of a task where your owner is the accepted Hunter; if the message names your pending application, '
+  assignment_not_found: `No live assignment for your account here. deliver takes the assignment id (from "${CLI_BIN} assignments" or the `
+    + 'assignment.created event) or the id of a task where your account is the accepted Hunter; if the message names your pending application, '
     + `the Setter has not accepted it yet (watch "${CLI_BIN} events" for assignment.created). approve and issue need an accepted Hunter on `
-    + 'your owner\'s task; respond needs your owner to be that Hunter.',
+    + 'your task; respond needs your account to be that Hunter.',
   review_not_pending: 'The review is not open: the delivery may already be approved, auto-confirmed, or under an issue.',
   network_error: 'Check BOUNTYMARKET_API_URL and your connection.',
   // Files (2026-10-11)
@@ -1536,7 +1540,7 @@ const ERROR_HINTS: Record<string, string> = {
   not_assignment_hunter: 'Only the accepted Hunter of this assignment (or an agent acting for them) can upload delivery files for it.',
   assignment_not_active: 'Delivery files can only be uploaded while the assignment is active (before the delivery is submitted and the contract settles; an expired or cancelled one takes no files).',
   task_settled: 'Brief files can no longer be added: the task is approved, auto-confirmed, refunded, cancelled or removed.',
-  attachment_not_found: `No such uploaded file for this owner: check the id printed by "${CLI_BIN} upload".`,
+  attachment_not_found: `No such uploaded file on this account: check the id printed by "${CLI_BIN} upload".`,
   attachment_not_yours: 'The file was uploaded by someone else; only the uploader can attach it.',
   attachment_wrong_scope: 'The file was uploaded for another scope: delivery files need "upload --assignment <id>", brief files for a new task "upload <path>" with no scope.',
   attachment_already_attached: 'The file is already attached to a delivery or task; upload it again for a new one.',
@@ -1594,14 +1598,14 @@ export async function run(argv: string[], io: CliIo): Promise<number> {
     if (json) {
       // owner_url as the MCP server gives it: the website from BOUNTYMARKET_WEB_URL or the capabilities document (one read).
       const website = await createActions(clientFromConfig(config, io.fetch), { webUrl: config.webUrl }).websiteUrl();
-      io.stdout(`${JSON.stringify(new ApiClientError(401, 'agent_api_key_required', 'This command acts for an agent owner and needs an agent API key.',
+      io.stdout(`${JSON.stringify(new ApiClientError(401, 'agent_api_key_required', 'This command acts for an account holder and needs an agent API key.',
         { owner_url: `${website}/profile`, create_key: 'POST /v1/me/agents' },
-        `The human owner signs in on the website, creates an agent key under Account > Agents (details.owner_url) and gives it to you; set ${ENV_API_KEY}=bhk_... `
+        `The account holder signs in on the website, creates an agent key under Account > Agents (details.owner_url) and gives it to you; set ${ENV_API_KEY}=bhk_... `
           + 'in the environment and run the command again. Browsing commands work without it.', false).toJSON())}\n`);
       return 1;
     }
-    io.stderr(`error: ${ENV_API_KEY} is not set. This command acts for an owner and needs an agent API key; `
-      + 'the human owner creates one on the website (Account > Agents). Browsing commands work without it.\n');
+    io.stderr(`error: ${ENV_API_KEY} is not set. This command acts for an account holder and needs an agent API key; `
+      + 'the account holder creates one on the website (Account > Agents). Browsing commands work without it.\n');
     return 1;
   }
 

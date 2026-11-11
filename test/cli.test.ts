@@ -36,7 +36,7 @@ const POST_BODY = {
   acceptance_criteria: sampleTask.acceptance_criteria, category_code: 'data_research', bounty_minor: 2500, delivery_hours: 24,
 };
 
-const CONFIRM_LABEL = 'confirm_url (one thing only a human can do there; "Next step" says what)';
+const CONFIRM_LABEL = 'confirm_url (the account holder\'s click there, signed in on the website; "Next step" says what)';
 
 describe('cli: argument parsing', () => {
   it('separates positionals, --flag value, --flag=value, repeated flags and booleans', () => {
@@ -90,7 +90,7 @@ describe('cli: commands', () => {
     assert.match(help.out(), /--summary-file <path \| ->  \(optional\)  read the summary from this file, or from stdin with -/);
     assert.match(help.out(), /bountymarket upload <path>\n\s+Upload one file over REST \(POST \/v1\/uploads\) and print its id\. With neither --assignment nor --task it is a draft brief file for "tasks post \.\.\. --attach <file id>"\. At most 25\.0 MB each and 10 per delivery or brief; documents \(pdf, doc\/docx, xls\/xlsx, ppt\/pptx, odt, txt, md, csv, json\), images \(png, jpg, gif, webp, svg\), archives \(zip, 7z, tar\.gz\), code and text files, audio \(mp3, wav, m4a\), video \(mp4, mov, webm\)\. Refused: executables, installers and runnable scripts \(exe, dll, msi, dmg, pkg, app, bat, cmd, sh, ps1, jar, apk and the like\); both the extension and the declared Content-Type are checked\. Files are private to the task's participants \(no public URL\) and deleted 20 days after the task settles, is cancelled or removed \(the brief files of a task cancelled or removed before anyone was accepted: after 1 day\)\./);
     assert.match(help.out(), /--assignment <value>  \(optional\)  delivery file: the assignment id/);
-    assert.match(help.out(), /--task <value>  \(optional\)  brief file for a task your owner already posted/);
+    assert.match(help.out(), /--task <value>  \(optional\)  brief file for a task your account already posted/);
     assert.match(help.out(), /--attach <value>\.\.\.  \(optional\)  file id printed by "bountymarket upload --assignment <id> <path>" \(repeat up to 10 times\); the files become delivery\.attachments \(each with sha256\), covered by content_digest/);
     assert.match(help.out(), /--attach <value>\.\.\.  \(optional\)  brief file for the Hunter: a file id printed by "bountymarket upload <path>"/);
     assert.match(help.out(), /bountymarket files get <file_id>\n\s+Download an attachment \(GET \/v1\/files\/<id>\): the task's Setter, its accepted Hunter, applicants \(brief files\), the uploader and admins only; 403 not_a_participant otherwise\.\n\s+--out <value>  where to save the bytes/);
@@ -113,16 +113,20 @@ describe('cli: commands', () => {
     // Trust stage 1 (platform 2026-10-19.2): six fee tiers by money earned, the Setter tier row as the posting limit, the limit-request door.
     assert.match(help.out(), /20 \/ 15 \/ 13 \/ 10 \/ 8 \/ 5 % by the Hunter's tier \(bronze to obsidian, from lifetime\nseasoned net earnings; the legacy count tiers 15 \/ 14 \/ 12\.5 \/ 10 % while the platform's trust\.mode is shadow\); during a published fee holiday\n\(capabilities money\.fee_holiday_until\) it is 0% for every Hunter\. Posting limits are the Setter's tier row once enforced/);
     assert.match(help.out(), /above a limit, "limit-request" asks the founder \(one task, an\naccount line for 24 hours by default, or a long-term line\); the founder may decline\. A Setter may set --min-hunter-tier on their own task\./);
-    assert.match(help.out(), /bountymarket limit-request\n\s+Ask the founder for a higher limit for your owner \(POST \/v1\/me\/limit-requests; the MCP tool request_limit\)/);
+    assert.match(help.out(), /bountymarket limit-request\n\s+Ask the founder for a higher limit for your account \(POST \/v1\/me\/limit-requests; the MCP tool request_limit\)/);
     assert.match(help.out(), /--side <value>  setter or hunter/);
     assert.match(help.out(), /--level <n>  1 = one task \(Setter side/);
     assert.match(help.out(), /--cooling-bypass  \(optional\)  Setter: lift the cooling after settlement where your tier row sets one/);
     assert.match(help.out(), /bountymarket limit-requests withdraw <request_id>/);
-    assert.match(help.out(), /bountymarket limit-requests\n\s+Your owner's limit requests \(GET \/v1\/me\/limit-requests, also me\.limit_requests\)/);
+    assert.match(help.out(), /bountymarket limit-requests\n\s+Your account's limit requests \(GET \/v1\/me\/limit-requests, also me\.limit_requests\)/);
     assert.match(help.out(), /--min-hunter-tier <value>  \(optional\)  only Hunters of this trust tier or above may apply \(bronze, silver, gold, platinum, diamond, obsidian; default: anyone\)/);
     assert.doesNotMatch(help.out(), /first listings/);
     assert.match(help.out(), /\(<website>\/task\/<task_id>\), in the sandbox exactly as in live mode/);
-    assert.match(help.out(), /If a result contains confirm_url, the owner has one thing only a human can do there; next_step says what\. Without confirm_url nothing needs a human; every task carries\nwebsite_url for linking\./);
+    assert.match(help.out(), /If a result contains confirm_url, the account holder has one click to make there on the website, signed in, that an agent key cannot; next_step says what\. Without confirm_url nothing needs a click on the website; every task carries\nwebsite_url for linking\./);
+    // Platform 2026-11-12.1 (founder 2026-11-11): an agent acts through an account; the help never names an owner (machine names such as pending_owner_action stay).
+    assert.match(help.out(), /No command chooses an amount or a payee\. Accepting an applicant is a click on the website by the account holder,\nsigned in, at the confirm_url this tool prints/);
+    assert.match(help.out(), /BOUNTYMARKET_API_KEY   agent API key \(bhk_\.\.\.\) created by the account holder on the website;/);
+    assert.doesNotMatch(help.out(), /\bowner\b|human owner/i);
     assert.match(help.out(), /status, authorised_minor, captured_minor, refunded_minor,\nhunter_fee_minor, hunter_net_minor, currency \(the fee is the Hunter's; the Setter pays exactly authorised_minor\)/);
     assert.match(help.out(), /BOUNTYMARKET_WEB_URL\s+website origin for confirm_url \/ website_url when an older API omits them/);
     assert.match(help.out(), /can differ from BOUNTYMARKET_API_URL \(locally: different ports\)/);
@@ -293,7 +297,7 @@ describe('cli: commands', () => {
     assert.match(human.out(), /Posted task .* \(pending_review\), bounty A\$25\.00\./);
     assert.ok(human.out().includes(`website_url (the task page, for linking): ${WEBSITE_URL_A}`));
     assert.match(human.out(), /awaits founder review/);
-    assert.match(human.out(), /No confirm_url: nothing needs a human right now\./);
+    assert.match(human.out(), /No confirm_url: nothing needs a click on the website right now\./);
     assert.doesNotMatch(human.out(), /confirm_url \(one thing/);
 
     // An older deployment without website_url / next_step: the same rules fill them (website from BOUNTYMARKET_WEB_URL), still no confirm_url.
@@ -358,8 +362,8 @@ describe('cli: commands', () => {
       },
       warnings: [
         { code: 'listing_will_be_reviewed', message: 'A new Setter\'s first listing is reviewed by the founder before becoming visible: this task would be created as pending_review (target 24 hours, a target, not a guarantee; see capabilities.review).' },
-        { code: 'auto_accept_needs_owner_confirmation', message: 'auto_accept was requested by an agent key: it would stay pending_owner_confirmation (nothing automatic) until the owner confirms with one click at confirm_url.' },
-        { code: 'no_saved_card', message: 'The owner has no saved card. Posting works, but no application can be accepted (412 payment_method_required).' },
+        { code: 'auto_accept_needs_owner_confirmation', message: 'auto_accept was requested by an agent key: it would stay pending_owner_confirmation (nothing automatic) until the account holder confirms with one click at confirm_url.' },
+        { code: 'no_saved_card', message: 'The account has no saved card. Posting works, but no application can be accepted (412 payment_method_required).' },
       ],
     };
     const handler = routes({ 'POST /v1/tasks': (call) => ((call.body as Record<string, unknown>).validate_only === true ? { status: 200, json: dry } : { status: 500, json: {} }) });
@@ -368,9 +372,9 @@ describe('cli: commands', () => {
     assert.deepEqual(t.calls[0]!.body, { ...POST_BODY, auto_accept: { enabled: true }, validate_only: true });
     assert.match(t.out(), /^Dry run: valid; nothing was created\.\n/);
     assert.match(t.out(), /Would create: "Summarise three research papers" as pending_review, bounty A\$25\.00, deliver within 24h, category data_research\./);
-    assert.match(t.out(), /Auto-accept: would be requested and stay off until the owner confirms it on the website\./);
+    assert.match(t.out(), /Auto-accept: would be requested and stay off until the account holder confirms it on the website\./);
     assert.match(t.out(), /Warnings:\n    listing_will_be_reviewed: A new Setter's first listing is reviewed/);
-    assert.match(t.out(), /    no_saved_card: The owner has no saved card/);
+    assert.match(t.out(), /    no_saved_card: The account has no saved card/);
     assert.doesNotMatch(t.out(), /Posted task/);
     assert.doesNotMatch(t.out(), /Held for a founder check/, 'review_reasons null: no hold line');
 
@@ -406,8 +410,8 @@ describe('cli: commands', () => {
     assert.equal(t.calls[0]!.url.pathname, `/v1/tasks/${UUID_A}/auto-accept/disable`);
     assert.equal(t.calls[0]!.headers.authorization, 'Bearer bhk_test_key');
     assert.match(t.out(), new RegExp(`Auto-accept is off for task ${UUID_A} \\(open\\)\\.`));
-    assert.match(t.out(), /Auto-accept is off\. Open and waiting for applications \(application\.created events\)\. When one arrives the owner accepts it on the website \(confirm_url is returned then\)/);
-    assert.match(t.out(), /No confirm_url: nothing needs a human right now\./);
+    assert.match(t.out(), /Auto-accept is off\. Open and waiting for applications \(application\.created events\)\. When one arrives the account holder accepts it on the website \(confirm_url is returned then\)/);
+    assert.match(t.out(), /No confirm_url: nothing needs a click on the website right now\./);
     const json = io(ENV_KEY, routes({ [`POST /v1/tasks/${UUID_A}/auto-accept/disable`]: { json: off }, [`GET /v1/tasks/${UUID_A}`]: { json: quiet } }));
     assert.equal(await run(['tasks', 'auto-accept', 'disable', UUID_A, '--json'], json.cli), 0);
     assert.deepEqual(Object.keys(JSON.parse(json.out())), ['task', 'next_step']);
@@ -425,7 +429,7 @@ describe('cli: commands', () => {
     assert.equal(await run(['tasks', 'auto-accept', 'disable', UUID_A, '--json'], old.cli), 0);
     const legacy = JSON.parse(old.out());
     assert.equal(legacy.task.website_url, WEBSITE_URL_A);
-    assert.match(legacy.next_step, /^Auto-accept is off\. Pending applications stay pending; the owner accepts one by hand on the website \(confirm_url is returned while there is one to accept/);
+    assert.match(legacy.next_step, /^Auto-accept is off\. Pending applications stay pending; the account holder accepts one by hand on the website \(confirm_url is returned while there is one to accept/);
     assert.equal('confirm_url' in legacy, false);
 
     const noId = io(ENV_KEY);
@@ -454,7 +458,7 @@ describe('cli: commands', () => {
       acceptance_criteria: sampleTask.acceptance_criteria, category_code: 'data_research', bounty_minor: 1300, delivery_hours: 12,
       auto_accept: { enabled: true, allow_agents: false, min_settled: 2 },
     });
-    assert.match(t.out(), /Auto-accept: requested; it stays off until the owner confirms it on the website/);
+    assert.match(t.out(), /Auto-accept: requested; it stays off until the account holder confirms it on the website/);
     assert.match(t.out(), /Confirm auto-accept at confirm_url \(one click; auto_accept_status is pending_owner_confirmation/);
     assert.ok(t.out().includes(`${CONFIRM_LABEL}: ${confirmUrl}`), 'prints the confirmation URL with the rule');
 
@@ -634,11 +638,11 @@ describe('cli: commands', () => {
     assert.equal(await run(['cancel-request', UUID_A, '--json'], r.cli), 0);
     const doc = JSON.parse(r.out());
     assert.equal(doc.requested_by, 'hunter');
-    assert.match(doc.next_step, /Nothing changes until the Setter's owner confirms on the website, a human click/);
+    assert.match(doc.next_step, /Nothing changes until the Setter's account holder confirms on the website, a human click/);
 
     const mine = io(ENV_KEY, routes({ 'GET /v1/me/tasks': { json: { tasks: [{ ...sampleTask, work: { pending_applications: 1, hunter: null, review_deadline_at: null } }] } } }));
     assert.equal(await run(['tasks', 'mine'], mine.cli), 0);
-    assert.match(mine.out(), new RegExp(`Owner action on ${UUID_A}: accept_applicant at https://web\\.test/task/${UUID_A}`));
+    assert.match(mine.out(), new RegExp(`Account holder action on ${UUID_A}: accept_applicant at https://web\\.test/task/${UUID_A}`));
   });
 
   it('tasks post for a listing the screen held for an online-only check prints the hold with review_reasons; the platform\'s next_step passes through and an older deployment gets the same words', async () => {
@@ -648,7 +652,7 @@ describe('cli: commands', () => {
     assert.match(t.out(), /Posted task .* \(pending_review\), bounty A\$25\.00\./);
     assert.match(t.out(), /Held for a founder check \(BountyMarket is online-only at launch; review_reasons: offline_task\)\. If the work is online, no action is needed; the founder will release it\./);
     assert.match(t.out(), /Your listing is held for a founder check because it looks like it may need in-person work/);
-    assert.match(t.out(), /No confirm_url: nothing needs a human right now\./);
+    assert.match(t.out(), /No confirm_url: nothing needs a click on the website right now\./);
 
     const old = io(ENV_KEY, routes({ 'POST /v1/tasks': { status: 201, json: withoutWebsiteUrl(heldOwnerTask) } }));
     assert.equal(await run([...POST_ARGV, '--json'], old.cli), 0);
@@ -704,11 +708,11 @@ describe('cli: commands', () => {
     const participant = { role: 'setter', applications: [], ...emptyParticipant, next_step: STEP.setterOpenAwaiting, confirm_hint: STEP.setterOpenAwaiting, confirm_url: confirmUrl, auto_accept_status: 'pending_owner_confirmation', auto_accept_confirm_url: confirmUrl };
     const t = io(ENV_KEY, routes({ [`GET /v1/tasks/${UUID_A}`]: { json: { ...pending, participant, confirm_url: confirmUrl } } }));
     assert.equal(await run(['tasks', 'get', UUID_A], t.cli), 0);
-    assert.match(t.out(), /auto-accept requested, awaiting the owner's confirmation \(agents not allowed, min settled tasks 1\)/);
+    assert.match(t.out(), /auto-accept requested, awaiting the account holder's confirmation \(agents not allowed, min settled tasks 1\)/);
     assert.match(t.out(), /Assignment: none yet\nDeliveries: 0\nReview: none\nPayment: status none, authorised \(held\) A\$0\.00, captured A\$0\.00, Hunter's fee A\$0\.00, Hunter's net A\$0\.00 \(the Setter pays no fee; the net is before Stripe's own fee and lands in the Hunter's Stripe balance\)/);
     assert.match(t.out(), /Next step: Confirm auto-accept at confirm_url \(one click; auto_accept_status is pending_owner_confirmation/);
     assert.ok(t.out().includes(`${CONFIRM_LABEL}: ${confirmUrl}`));
-    assert.ok(t.out().includes(`auto_accept_confirm_url (the owner confirms auto-accept here): ${confirmUrl}`));
+    assert.ok(t.out().includes(`auto_accept_confirm_url (the account holder confirms auto-accept here): ${confirmUrl}`));
   });
 
   it('tasks get for the Setter lists each application with its skipped reason, the held amount with the Hunter\'s fee, and confirm_url only while an applicant waits', async () => {
@@ -726,7 +730,7 @@ describe('cli: commands', () => {
     assert.equal(await run(['tasks', 'get', UUID_A], held.cli), 0);
     assert.match(held.out(), /Payment: status held, authorised \(held\) A\$25\.00, captured A\$0\.00, Hunter's fee A\$3\.75, Hunter's net A\$21\.25 \(the Setter pays no fee; the net is before Stripe's own fee and lands in the Hunter's Stripe balance\)/);
     assert.match(held.out(), new RegExp(`Assignment: ${UUID_B} \\(active\\), deadline 2026-10-06T02:00:00\\.000Z, net A\\$21\\.25`));
-    assert.match(held.out(), /No confirm_url: nothing needs a human right now \(link with website_url\)\./);
+    assert.match(held.out(), /No confirm_url: nothing needs a click on the website right now \(link with website_url\)\./);
     assert.doesNotMatch(held.out(), /confirm_url \(one thing/);
 
     const settled = { ...working, deliveries: [sampleDelivery], review: approvedReview, payment: capturedPayment, next_step: STEP.setterSettled, confirm_hint: STEP.setterSettled };
@@ -862,7 +866,7 @@ describe('cli: commands', () => {
     assert.match(miss.err(), /assignment_not_found \(HTTP 404\)/);
     assert.match(miss.err(), /Your application .* is still pending/);
     assert.match(miss.err(), /"pending_application_id":"33333333-3333-4333-8333-333333333333"/);
-    assert.match(miss.err(), /deliver takes the assignment id \(from "bountymarket assignments" or the assignment\.created event\) or the id of a task where your owner is the accepted Hunter/);
+    assert.match(miss.err(), /deliver takes the assignment id \(from "bountymarket assignments" or the assignment\.created event\) or the id of a task where your account is the accepted Hunter/);
   });
 
   it('events passes the cursor, the optional --task filter, and prints next_after', async () => {
@@ -951,13 +955,13 @@ describe('cli: commands', () => {
 
   it('platform errors exit 1 with the code, details, the next step and a hint; --json prints the error document to stdout in the platform shape', async () => {
     const handler = routes({
-      'POST /v1/tasks': { status: 422, json: { error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_engagement'] } }, next_step: 'Do not rephrase to evade the screen; see details.categories and get_rules.' } },
+      'POST /v1/tasks': { status: 422, json: { error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_reviews'] } }, next_step: 'Do not rephrase to evade the screen; see details.categories and get_rules.' } },
     });
     const argv = ['tasks', 'post', '--title', 'Buy 100 five-star reviews', '--brief', 'b'.repeat(20), '--deliverable', 'd', '--criteria', 'c', '--category', 'other', '--bounty', '1000', '--hours', '1'];
     const human = io(ENV_KEY, handler);
     assert.equal(await run(argv, human.cli), 1);
     assert.match(human.err(), /prohibited_task \(HTTP 422\): This task matches a prohibited category\./);
-    assert.match(human.err(), /fake_engagement/);
+    assert.match(human.err(), /fake_reviews/);
     assert.match(human.err(), /Next step: Do not rephrase to evade the screen; see details\.categories and get_rules\./);
     assert.match(human.err(), /Do not rephrase/);
     const json = io(ENV_KEY, handler);
@@ -965,7 +969,7 @@ describe('cli: commands', () => {
     assert.equal(json.err(), '', 'nothing on stderr with --json');
     const doc = JSON.parse(json.out());
     assert.deepEqual(doc, {
-      error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_engagement'] }, retryable: false },
+      error: { code: 'prohibited_task', message: 'This task matches a prohibited category.', status: 422, details: { categories: ['fake_reviews'] }, retryable: false },
       next_step: 'Do not rephrase to evade the screen; see details.categories and get_rules.',
     });
   });
@@ -1023,7 +1027,8 @@ describe('cli: commands', () => {
           { code: 'writing_editing', label: 'Writing and editing', label_zh: '写作与校对', description: 'Write, rewrite, proofread or edit text: copy, documentation, emails, product descriptions, summaries.' },
           { code: 'other', label: 'Other', label_zh: '其他', description: 'Any other online task with a clear deliverable that fits none of the seven categories above; say what it is in the brief.' },
         ],
-        delivery_hours: { min: 1, max: 96 }, review_window_hours: 48,
+        // The platform's default since 2026-11-12.1 (the operator's setting, 12 to 48).
+        delivery_hours: { min: 1, max: 96 }, review_window_hours: 24,
       },
       activity: {
         open_tasks: 1, settled_last_30_days: 0, active_hunters_last_30_days: 0,
@@ -1031,7 +1036,7 @@ describe('cli: commands', () => {
       },
       review: { new_setter_first_listings: 1, target_hours: 24, median_hours_to_approval_last_30_days: null, note: 'A target, not a guarantee.' },
       events: { how: 'Poll GET /v1/events?after=<seq>.', types: [{ type: 'task.pending_review', visible_to: 'the Setter and admins', meaning: '...' }, { type: 'task.published', visible_to: 'everyone (public)', meaning: '...' }] },
-      confirm_url: 'confirm_url appears in a result ONLY when the owner has one thing only a human can do on the website: accept an applicant by hand, confirm an agent-requested auto-accept (one click), or confirm the other side\'s cancellation request. next_step says which.',
+      confirm_url: 'confirm_url appears in a result ONLY when the account holder has one thing to do on the website, signed in, that an agent key cannot do: accept an applicant by hand, confirm an agent-requested auto-accept (one click), or confirm the other side\'s cancellation request. next_step says which.',
       links: { website: 'https://web.test', api: 'https://api.test/v1', mcp: 'https://api.test/mcp', task_page: 'https://web.test/task/{id}' },
       links_note: 'api, openapi, mcp, manifest, policy, capabilities, events, tasks and report are built from the origin that answered this request (the API). website, task_page, rules, terms, privacy and contact are built from the public website base (PUBLIC_BASE_URL), which can be a different host.',
     };
@@ -1040,19 +1045,24 @@ describe('cli: commands', () => {
     assert.match(sandbox.out(), /Mode: sandbox; live charges off/);
     assert.match(sandbox.out(), /Time: 2026-11-02T00:00:00\.000Z \(every timestamp is UTC, ISO-8601 with Z\)/);
     assert.match(sandbox.out(), /Who can use it: Setters: Anyone, any country, with a non-prepaid card; charged in AUD\. Hunters: Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement\./);
-    assert.match(sandbox.out(), /Auto-accept: a task of at most A\$50\.00 may accept the first qualifying applicant automatically; a human confirms the opt-in/);
+    assert.match(sandbox.out(), /Auto-accept: a task of at most A\$50\.00 may accept the first qualifying applicant automatically; the account holder confirms the opt-in on the website\n/);
     assert.match(sandbox.out(), /Agent actions \(sandbox and live alike\): accept_application human_or_pre_authorised_auto_accept; approve_delivery agent_allowed; raise_issue agent_allowed; respond_to_issue agent_allowed/);
     assert.match(sandbox.out(), /Bounty: A\$10\.00 to A\$100\.00 per task \(new Setters: A\$50\.00 until their first listing is approved\); A\$200\.00 per Setter per day/);
     assert.match(sandbox.out(), /Fee \(paid by the Hunter at settlement\): bronze 15%/);
     assert.doesNotMatch(sandbox.out(), /Fee holiday/, 'fee_holiday_until null: no holiday line');
     assert.match(sandbox.out(), /Categories:\n\s+testing_qa\s+Testing and QA \(测试与 QA\): Try a product, flow, app or API and report what you find: bugs, confusing steps, device checks, usability notes\.\n\s+writing_editing\s+Writing and editing \(写作与校对\): Write, rewrite, proofread or edit text: copy, documentation, emails, product descriptions, summaries\.\n\s+other\s+Other \(其他\): Any other online task/);
-    assert.match(sandbox.out(), /Delivery: 1-96 hours \(at most 4 days\); the clock starts at acceptance, not at posting; review window 48 hours/);
+    assert.match(sandbox.out(), /Delivery: 1-96 hours \(at most 4 days\); the clock starts at acceptance, not at posting; review window 24 hours \(set by the operator; each delivery's review\.review_deadline_at is authoritative\)\n/);
     assert.match(sandbox.out(), /Review: a new Setter's first listing is reviewed by the founder, target 24 hours \(a target, not a guarantee\); recent median n\/a \(fewer than 3 samples\) from posting to approval; a listing whose wording suggests in-person work is held the same way for an online-only check \(review_reasons\)/);
     assert.match(sandbox.out(), /Caps auto-scale: on; 0 of 20 consecutive dispute-free settlements towards the next doubling \(level 0, never changed yet\); ceilings: per task A\$500\.00, new Setter per task A\$100\.00, per Setter per day A\$1000\.00, site per day A\$5000\.00\. Any raised issue resets the streak; caps never decrease automatically; the auto-accept cap never scales\./);
     assert.doesNotMatch(sandbox.out(), /first listings/);
     assert.match(sandbox.out(), /Activity: 1 open tasks; last 30 days: 0 settled, 0 active Hunters, median n\/a \(fewer than 3 samples\) to first application, median n\/a \(fewer than 5 samples\) from application to acceptance \(as of 2026-11-02T00:00:00\.000Z\)/);
     assert.match(sandbox.out(), /Event types: task\.pending_review, task\.published/);
-    assert.match(sandbox.out(), /confirm_url rule: confirm_url appears in a result ONLY when the owner has one thing only a human can do on the website/);
+    assert.match(sandbox.out(), /confirm_url rule: confirm_url appears in a result ONLY when the account holder has one thing to do on the website, signed in, that an agent key cannot do/);
+    // An older deployment without tasks.review_window_hours: the Delivery line names no review window rather than a guess.
+    const older = io(ENV, routes({ 'GET /v1/capabilities': { json: { ...doc, tasks: { ...doc.tasks, review_window_hours: undefined } } } }));
+    assert.equal(await run(['capabilities'], older.cli), 0);
+    assert.match(older.out(), /Delivery: 1-96 hours \(at most 4 days\); the clock starts at acceptance, not at posting\n/);
+    assert.doesNotMatch(older.out(), /review window/);
     assert.match(sandbox.out(), /Website: https:\/\/web\.test \(task pages are https:\/\/web\.test\/task\/<task_id>\)/);
     assert.match(sandbox.out(), /API: https:\/\/api\.test\/v1; MCP: https:\/\/api\.test\/mcp/);
     assert.match(sandbox.out(), /Links note: api, openapi, mcp, manifest, policy, capabilities, events, tasks and report are built from the origin that answered this request \(the API\)\. website, task_page, rules, terms, privacy and contact are built from the public website base/);
@@ -1554,7 +1564,7 @@ describe('cli: limits (trust stage 1, platform 2026-10-19.2): limit-request, lim
         pacing: { one_open_request: true, max_per_30d: 3, declines_for_cooldown: 2, decline_cooldown_days: 30, pending_expiry_days: 7, note: '...' },
         ceilings: { in_flight_minor: 1000000, daily_minor: 2000000, note: '...' }, rules: {}, routes: { file: 'POST /v1/me/limit-requests', mcp_tool: 'request_limit' },
       },
-      tasks: { categories: [], delivery_hours: { min: 1, max: 96 }, review_window_hours: 48, auto_accept: { max_bounty_minor: 5000, max_bounty_rule: 'The auto-accept cap is the Setter\'s per-task cap.' } },
+      tasks: { categories: [], delivery_hours: { min: 1, max: 96 }, review_window_hours: 24, auto_accept: { max_bounty_minor: 5000, max_bounty_rule: 'The auto-accept cap is the Setter\'s per-task cap.' } },
       links: { website: 'https://web.test' },
     };
     const t = io(ENV, routes({ 'GET /v1/capabilities': { json: doc } }));
@@ -1566,8 +1576,8 @@ describe('cli: limits (trust stage 1, platform 2026-10-19.2): limit-request, lim
     assert.doesNotMatch(t.out(), /cooling \d+ d/);
     assert.match(t.out(), /Hunter slots \(concurrent assignments by tier; a delivered one stops counting 12 h after delivery\): bronze 3, silver 4, gold 5, platinum 6, diamond 8, obsidian 10/);
     assert.match(t.out(), /Fee \(paid by the Hunter at settlement, by lifetime seasoned net earnings\): bronze 20%, silver 15% from A\$250\.00, gold 13% from A\$1000\.00, platinum 10% from A\$5000\.00, diamond 8% from A\$15000\.00, obsidian 5% from A\$30000\.00\n/);
-    assert.match(t.out(), /Auto-accept: a task of at most the Setter's per-task cap \(their tier row; a task raised by an approved limit request up to the raised cap\) may accept the first qualifying applicant automatically; a human confirms the opt-in/);
-    assert.match(t.out(), /Limit requests: anyone may ask the founder for a higher limit \(a human session or the owner's agent key; "bountymarket limit-request"\): level 1 one task, 2 an account line \(24 hours by default\), 3 a long-term line; one open request at a time, 3 per 30 days, 2 declines in a row → a 30-day wait, unanswered for 7 days → expired; ceilings A\$10000\.00 in flight, A\$20000\.00 per day/);
+    assert.match(t.out(), /Auto-accept: a task of at most the Setter's per-task cap \(their tier row; a task raised by an approved limit request up to the raised cap\) may accept the first qualifying applicant automatically; the account holder confirms the opt-in on the website/);
+    assert.match(t.out(), /Limit requests: anyone may ask the founder for a higher limit \(a human session or the account's agent key; "bountymarket limit-request"\): level 1 one task, 2 an account line \(24 hours by default\), 3 a long-term line; one open request at a time, 3 per 30 days, 2 declines in a row → a 30-day wait, unanswered for 7 days → expired; ceilings A\$10000\.00 in flight, A\$20000\.00 per day/);
     assert.doesNotMatch(t.out(), /A\$10\.00 to A\$100\.00 per task|per Setter per day|at most A\$50\.00 may accept/, 'the retired static caps are not the limit');
     assert.match(t.out(), /\nCaps auto-scale: retired while trust\.mode is enforce \(the Setter tier rows apply, trust\.setter_rows\)\.\n/);
     assert.doesNotMatch(t.out(), /ceilings: per task|consecutive dispute-free settlements/, 'no retired ceilings or streak in enforce mode');
@@ -1635,13 +1645,13 @@ describe('cli: limits (trust stage 1, platform 2026-10-19.2): limit-request, lim
     assert.match(cap.err(), /setter_task_cap_exceeded \(HTTP 422\): The bounty \(A\$60\.00\) is above your per-task cap of A\$50\.00 \(bronze\)/);
     assert.match(cap.err(), /details: \{"tier":"bronze","cap_minor":5000,"bounty_minor":6000,"next_tier":"silver"/);
     assert.match(cap.err(), /Next step: Lower bounty_minor to at most 5000 \(details\.cap_minor\), split the work into tasks within it, or ask for a higher limit: POST \/v1\/me\/limit-requests/);
-    assert.match(cap.err(), /Your owner's Setter tier row is the limit \("me": trust\.setter\.row; details carry the numbers, the next tier's row and request_route\)\. .*"bountymarket limit-request --side setter --level 1 --task <id> --per-task-cap <cents> --reason \.\.\." raises one task, "--level 2" an account line \(24 hours by default; up to the next tier's row\); the founder decides, normally within 24 hours, and may decline\./);
+    assert.match(cap.err(), /Your account's Setter tier row is the limit \("me": trust\.setter\.row; details carry the numbers, the next tier's row and request_route\)\. .*"bountymarket limit-request --side setter --level 1 --task <id> --per-task-cap <cents> --reason \.\.\." raises one task, "--level 2" an account line \(24 hours by default; up to the next tier's row\); the founder decides, normally within 24 hours, and may decline\./);
     const json = io(ENV_KEY, handler);
     assert.equal(await run([...POST_ARGV.slice(0, -4), '--bounty', '6000', '--hours', '24', '--json'], json.cli), 1);
     assert.equal(JSON.parse(json.out()).error.details.request_route, 'POST /v1/me/limit-requests');
     const auto = io(ENV_KEY, handler);
     assert.equal(await run([...POST_ARGV.slice(0, -4), '--bounty', '6000', '--hours', '24', '--auto-accept'], auto.cli), 1);
-    assert.match(auto.err(), /your owner's per-task cap once the trust ladder is enforced \("me": trust\.setter\.row\.auto_accept_cap_minor; details\.cap_minor\)/);
+    assert.match(auto.err(), /your account's per-task cap once the trust ladder is enforced \("me": trust\.setter\.row\.auto_accept_cap_minor; details\.cap_minor\)/);
     const tier = io(ENV_KEY, handler);
     assert.equal(await run(['apply', UUID_C], tier.cli), 1);
     assert.match(tier.err(), /min_tier_not_met \(HTTP 422\): The Setter asks for Hunters of tier gold or above on this task; you are silver\./);
@@ -1667,7 +1677,7 @@ describe('cli: trust stage 2 (platform 2026-10-30.1): identity in me and capabil
   it('me prints the identity line: gate applied and startable, pending, failed with the reason, verified, paced out, and off; an older deployment prints none', async () => {
     const gated = io(ENV_KEY, routes({ 'GET /v1/me': { json: { ...baseMe, identity } } }));
     assert.equal(await run(['me'], gated.cli), 0);
-    assert.match(gated.out(), /Identity: not started; your Setter tier is platinum or above, so the gold row applies until verified \(fee and badge unchanged\); the owner starts it on the website \(Account > Identity, Australian driving licence or passport; never an agent key\)\n/);
+    assert.match(gated.out(), /Identity: not started; your Setter tier is platinum or above, so the gold row applies until verified \(fee and badge unchanged\); the account holder starts it on the website, signed in \(Account > Identity, Australian driving licence or passport; never an agent key\)\n/);
 
     const pending = io(ENV_KEY, routes({ 'GET /v1/me': { json: { ...baseMe, identity: { ...identity, status: 'pending', sessions_30d: 1, can_start_now: false } } } }));
     assert.equal(await run(['me'], pending.cli), 0);
@@ -1683,7 +1693,7 @@ describe('cli: trust stage 2 (platform 2026-10-30.1): identity in me and capabil
 
     const below = io(ENV_KEY, routes({ 'GET /v1/me': { json: { ...baseMe, identity: { ...identity, required_now: false, gate_applies: false, row_tier_while_unverified: null } } } }));
     assert.equal(await run(['me'], below.cli), 0);
-    assert.match(below.out(), /Identity: not started; required for Setters from the platinum tier and for a level-3 line; the owner starts it on the website/);
+    assert.match(below.out(), /Identity: not started; required for Setters from the platinum tier and for a level-3 line; the account holder starts it on the website, signed in/);
 
     const off = io(ENV_KEY, routes({ 'GET /v1/me': { json: { ...baseMe, identity: { ...identity, enabled: false, required_for_tier: null, required_now: false, gate_applies: false, row_tier_while_unverified: null, can_start_now: false } } } }));
     assert.equal(await run(['me'], off.cli), 0);
@@ -1698,7 +1708,7 @@ describe('cli: trust stage 2 (platform 2026-10-30.1): identity in me and capabil
     const doc = {
       name: 'BountyMarket', status: 'public_sandbox', mode: 'sandbox', live_charges: false,
       money: { minimum_bounty_minor: 1000, max_task_bounty_minor: 10000, new_setter_task_cap_minor: 5000, setter_daily_cap_minor: 20000, fee_tiers: [{ code: 'bronze', fee_percent: 15 }] },
-      tasks: { categories: [], delivery_hours: { min: 1, max: 96 }, review_window_hours: 48 },
+      tasks: { categories: [], delivery_hours: { min: 1, max: 96 }, review_window_hours: 24 },
       links: { website: 'https://web.test' },
     };
     const on = { ...doc, identity: {
@@ -1708,7 +1718,7 @@ describe('cli: trust stage 2 (platform 2026-10-30.1): identity in me and capabil
     } };
     const t = io(ENV, routes({ 'GET /v1/capabilities': { json: on } }));
     assert.equal(await run(['capabilities'], t.cli), 0);
-    assert.match(t.out(), /Identity verification: on for Setters from the platinum tier \(Stripe Identity, Australian driving licence or passport; until verified such a Setter reads the row of the tier below; a level-3 line needs it\); the owner starts it on the website \(Account > Identity; never an agent key\); 2 sessions per account and 100 site-wide per 30 days; the platform stores the outcome only\n/);
+    assert.match(t.out(), /Identity verification: on for Setters from the platinum tier \(Stripe Identity, Australian driving licence or passport; until verified such a Setter reads the row of the tier below; a level-3 line needs it\); the account holder starts it on the website, signed in \(Account > Identity; never an agent key\); 2 sessions per account and 100 site-wide per 30 days; the platform stores the outcome only\n/);
 
     const off = io(ENV, routes({ 'GET /v1/capabilities': { json: { ...on, identity: { ...on.identity, enabled: false, required_from_tier: null } } } }));
     assert.equal(await run(['capabilities'], off.cli), 0);
@@ -1727,8 +1737,8 @@ describe('cli: trust stage 2 (platform 2026-10-30.1): identity in me and capabil
     assert.equal(await run(['limit-request', '--side', 'setter', '--level', '3', '--total-cap', '200000', '--reason', REASON], t.cli), 1);
     assert.match(t.err(), /limit_request_invalid \(HTTP 422\): A level-3 request carries the application form \(detail\)\./);
     assert.match(t.err(), /Next step: File the Contractor application on the website/);
-    assert.match(t.err(), /details\.field "detail" \(or detail\.<key>\): a level-3 Contractor line carries an application form \(legal name, ABN, use case, expected spend, a contact phone, a verification call\) that the owner fills on the website \(Account > Limits\); this command and the MCP tool cannot send it\./);
-    assert.match(USAGE, /since platform 2026-10-30\.1 it carries an application form the owner fills on the website, so this command answers 422 limit_request_invalid \{ field: detail \} at level 3/);
+    assert.match(t.err(), /details\.field "detail" \(or detail\.<key>\): a level-3 Contractor line carries an application form \(legal name, ABN, use case, expected spend, a contact phone, a verification call\) that the account holder fills on the website \(Account > Limits\); this command and the MCP tool cannot send it\./);
+    assert.match(USAGE, /since platform 2026-10-30\.1 it carries an application form the account holder fills on the website, so this command answers 422 limit_request_invalid \{ field: detail \} at level 3/);
   });
 
   it('the hold-gate and identity codes print the platform\'s sentence, the next step and a hint (cluster_on_hold, breaker_paused, identity_required_for_level, identity_session_limit, identity_not_available, human_only)', async () => {
@@ -1738,11 +1748,11 @@ describe('cli: trust stage 2 (platform 2026-10-30.1): identity in me and capabil
       { status: 422, code: 'breaker_paused', details: { rule: 'b2', tripped_at: '2026-10-30T02:00:00.000Z', tier: 'bronze', values: {}, paused_tiers: ['bronze'] },
         hint: /New card holds for Bronze-tier Setters are paused marketplace-wide \(an automatic safety pause, details\.rule tripped at details\.tripped_at; the founder is reviewing\)\. Retry later: the pause lifts when it is cleared;/ },
       { status: 422, code: 'identity_required_for_level', details: { level: 3, identity_status: 'not_started', required_from_tier: 'platinum' },
-        hint: /A level-3 Contractor line is approved only once the owner's Stripe Identity is verified \(details\.identity_status\)\. The owner verifies on the website \(Account > Identity: an Australian driving licence or passport, live capture; a human session, never an agent key\)/ },
+        hint: /A level-3 Contractor line is approved only once the account holder's Stripe Identity is verified \(details\.identity_status\)\. The account holder verifies on the website \(Account > Identity: an Australian driving licence or passport, live capture; signed in, never with an agent key\)/ },
       { status: 429, code: 'identity_session_limit', details: { scope: 'account', used: 2, max: 2, window_days: 30, next_allowed_at: '2026-11-20T00:00:00.000Z', retry_after_seconds: 86400 },
         hint: /Identity sessions are paced: 2 per account and identity_monthly_cap site-wide per 30 days \(details\.scope account \| site, used, max\)\. Wait until details\.next_allowed_at/ },
       { status: 503, code: 'identity_not_available', details: {}, hint: /Identity verification is off on this deployment \("me": identity\.enabled false\): no limit depends on it/ },
-      { status: 403, code: 'human_only', details: {}, hint: /This step is the owner's own, on the website \(for example starting identity verification\): an agent key is never accepted for it\./ },
+      { status: 403, code: 'human_only', details: {}, hint: /This step is the account holder's own, signed in on the website \(for example starting identity verification\): an agent key is never accepted for it\./ },
     ];
     for (const r of refusals) {
       const t = io(ENV_KEY, routes({ [`POST /v1/tasks/${UUID_A}/applications`]: { status: r.status, json: { error: { code: r.code, status: r.status, message: `${r.code} sentence.`, details: r.details }, next_step: `${r.code} next step.` } } }));

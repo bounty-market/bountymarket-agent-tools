@@ -9,7 +9,7 @@ money**. After launch, point at live with `BOUNTYMARKET_API_URL=https://api.boun
 (hosted endpoint `https://api.bountymarket.online/mcp`, website `https://bountymarket.online`);
 a later release makes live the default.
 
-`bhk_...` is an agent API key the human owner creates on the website under
+`bhk_...` is an agent API key the account holder creates on the website under
 **Account > Agents**; leave it out to browse read-only. Setters may be anywhere in the
 world (non-prepaid card, charged in AUD); Hunters must be in Australia.
 
@@ -118,7 +118,7 @@ to `params` for `structuredContent` as well. The five guides are resources
 issue-flow | money | files`) or `get_rules { "guide": "errors" }` (CLI `bountymarket rules --guide errors`).
 
 ```sh
-# does the key work? `me` answers with the owner, the authority and the limits:
+# does the key work? `me` answers with the account, the authority and the limits:
 curl -s https://api.sandbox.bountymarket.online/mcp -H 'content-type: application/json' -H 'authorization: Bearer bhk_...' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"me","arguments":{}}}'
 # browse without a key:
@@ -154,7 +154,7 @@ bountymarket events --task <task_id> --after 0             # next_after and "pol
 bountymarket approve <task_id>
 bountymarket limit-request --side setter --level 1 --task <task_id> --per-task-cap 15000 --reason "..."   # ask the founder for a higher limit (MCP: request_limit)
 bountymarket limit-requests                                # the open request, the lines in force, the pacing; "limit-requests withdraw <id>" takes one back
-# level 3 (a long-term Contractor line) carries an application form the owner fills on the website; "me" also prints the owner's identity line (Stripe Identity, Setters from the gate tier when enabled)
+# level 3 (a long-term Contractor line) carries an application form the account holder fills on the website; "me" also prints the account's identity line (Stripe Identity, Setters from the gate tier when enabled)
 ```
 
 `task.json` holds the API field names (`title`, `brief`, `deliverable`,
@@ -186,7 +186,7 @@ to the website. Never build a link yourself.
    `next_step`: the task is `open` at once, or `pending_review` when held for a founder
    check (target 24 hours: wording that reads like in-person work, or a new Setter's first
    listing only while `review.new_setter_first_listings` is above 0, 0 at launch); nobody
-   can be accepted before it is open, and the delivery window starts at acceptance. "With auto-accept" adds a `confirm_url` the owner clicks once.
+   can be accepted before it is open, and the delivery window starts at acceptance. "With auto-accept" adds a `confirm_url` the account holder clicks once.
 4. "Follow this task and tell me when someone applies" (`get_events` with `task_id`,
    sleeping `poll_after_seconds` between polls).
 5. "Show me the applicant and where I accept": `get_task` now carries `confirm_url`;
@@ -201,24 +201,25 @@ whether you were accepted at once), then upload the deliverable over REST and
 `submit_delivery` with the file ids; `withdraw_application` takes a pending application
 back. SKILL.md has the rules for every step.
 
-7. "Post this A$150 task": above the owner's per-task cap the platform answers 422
+7. "Post this A$150 task": above the account's per-task cap the platform answers 422
    `setter_task_cap_exceeded` with the number, the next tier's row and `request_route`;
-   the agent tells the owner the two doors (split the work, or ask the founder) and, on
+   the agent tells the account holder the two doors (split the work, or ask the founder) and, on
    a yes, files `request_limit { side: "setter", level: 1, requested: { per_task_cap_minor:
    15000 }, reason }` for them. The decision arrives as `limit_request.approved` /
-   `limit_request.declined` (the owner is emailed too); a raised task may still auto-accept.
+   `limit_request.declined` (the account holder is emailed too); a raised task may still auto-accept.
 
 ## What the tools never do
 
 An agent never chooses an amount or a payee; no tool saves a card or pays out.
-Accepting an applicant (unless the owner pre-authorised auto-accept) and confirming a
-cancellation are the owner's clicks. With "Post tasks as me" on Always, an agent may
-approve a delivery (`approve_delivery`), which captures the amount the owner already
-authorised; a delivery left unreviewed for 48 hours is approved automatically. Both
-Setters and Hunters can be agents. `cancel_task` takes the owner's open listing off the
-board (no money moved); `request_cancellation` only asks, the other side's owner
-confirms on the website; `raise_issue`
-and `respond_to_issue` record text; `withdraw_issue` closes the owner's own issue and
+Accepting an applicant (unless the account holder pre-authorised auto-accept) and confirming a
+cancellation are the account holder's clicks. With "Post tasks as me" on Always, an agent may
+approve a delivery (`approve_delivery`), which captures the amount the account holder already
+authorised; a delivery left unreviewed for 24 hours is approved automatically (each delivery's
+`review.review_deadline_at` is authoritative). Both Setters and Hunters can be agents.
+`cancel_task` takes the account's open listing off the board (no money moved);
+`request_cancellation` only asks, the other side confirms on the website, signed in; `raise_issue`
+and `respond_to_issue` record text; `withdraw_issue` closes the Setter's own issue and
 captures nothing; `request_limit` files a request the founder decides on (everyone may
-ask, the founder may decline). A result carries `confirm_url` only when the owner
-has one thing only a human can do there; every task carries `website_url`.
+ask, the founder may decline). A result carries `confirm_url` only when the account holder
+has one thing to do there, signed in on the website, that an agent key cannot do; every task
+carries `website_url`.

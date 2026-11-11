@@ -5,15 +5,15 @@
  * connects remotely or runs this package locally. `test/fixtures/remote-tools.json`
  * is the snapshot of the hosted definitions; `scripts/check-parity.mjs` compares.
  *
- * Read-only tools work without credentials. Tools that act for an owner need an
+ * Read-only tools work without credentials. Tools that act for an account holder need an
  * agent API key. No tool chooses an amount or a payee. Accepting an applicant is
- * not a tool, in sandbox or live: the owner clicks on the website, or pre-authorises
- * auto-accept when posting (an agent's request waits for the owner at
+ * not a tool, in sandbox or live: the account holder clicks on the website, signed in, or
+ * pre-authorises auto-accept when posting (an agent's request waits for the account holder at
  * `<website>/task/<id>?confirm=auto_accept`; `disable_auto_accept` withdraws it).
  *
  * Two rules every result follows (2026-10-07, after the second agent end-to-end
- * test): a result carries `confirm_url` ONLY when the owner has one thing only a
- * human can do on the website (accept an applicant by hand, confirm an
+ * test): a result carries `confirm_url` ONLY when the account holder has one thing to
+ * do on the website, signed in, that an agent key cannot do (accept an applicant by hand, confirm an
  * agent-requested auto-accept, confirm the other side's cancellation request) and
  * `next_step` says what; every task carries `website_url` (`<website>/task/<id>`)
  * for plain linking. Every `payment` block has one shape: { status,
@@ -21,9 +21,9 @@
  * hunter_net_minor, currency }. approve_delivery captures exactly the amount
  * already authorised at acceptance. 21 tools: get_money since 2026-10-15, withdraw_application since 2026-10-15.12,
  * me since 2026-10-15.13, withdraw_issue since 2026-10-15.16 (the Setter's door out of their own issue), request_limit since
- * 2026-10-19.2 (trust stage 1: an agent key may file a limit request for its owner), cancel_task and
+ * 2026-10-19.2 (trust stage 1: an agent key may file a limit request for the account holder), cancel_task and
  * request_cancellation since platform 2026-11-10 (the Setter's door out of an open listing,
- * and either side's request for a mutual cancellation; confirming one stays the other owner's click). Trust stage 2
+ * and either side's request for a mutual cancellation; confirming one stays the other side's click). Trust stage 2
  * (platform 2026-10-30.1) added no tool and changed no shape: the event types payment.fee_returned,
  * trust.compensation_paid and trust.identity_verified / _failed below, `me.identity`, the level-3 application form (website only: request_limit has no
  * `detail`, so a level-3 call answers 422 limit_request_invalid { field: detail }) and the 422 codes cluster_on_hold /
@@ -55,13 +55,22 @@
  * test): eight task categories (TASK_CATEGORIES, each with an English and a Chinese
  * label and a one-line description; the four launch codes digital_online,
  * creative_arts, learning_guidance and other were re-tagged on the platform);
- * delivery_hours is 1 to 96 (at most 4 days; the 48-hour review window after delivery
- * is unchanged); the hosted /mcp endpoint takes at most MCP_MAX_BATCH JSON-RPC
+ * delivery_hours is 1 to 96 (at most 4 days; the review window after delivery stayed
+ * 48 hours then); the hosted /mcp endpoint takes at most MCP_MAX_BATCH JSON-RPC
  * requests per POST and MCP_MAX_BODY_BYTES of body (over either, one -32600 error for
  * the whole batch); search_tasks limit is at most MAX_SEARCH_LIMIT and get_events limit
  * at most MAX_EVENTS_LIMIT, both capped server-side; prohibited-task screening folds
  * spelling tricks before matching and covers English, Chinese, French, Spanish, German
  * and Indonesian (SCREENING_NOTE).
+ *
+ * Platform 2026-11-12.1 (founder decisions of 2026-11-11 and 2026-11-12): the Setter's review
+ * window is 24 hours by default and set by the operator (capabilities tasks.review_window_hours,
+ * 12 to 48; each delivery's review.review_deadline_at is authoritative); the prohibited list keeps
+ * identity proxying, academic cheating, adult services, gambling, payments with no deliverable and
+ * anything else illegal or harmful, screened at posting as fake_reviews and pay_to_unlock among
+ * others (the codes credentials_or_codes, captcha_solving, fake_engagement and
+ * referral_or_pay_to_unlock are retired); an agent acts through an account and the account holder
+ * answers for it; a founder decision returns any share of the bounty from 0% to 100%.
  */
 
 import { BRAND_NAME, ENV_API_KEY, STRUCTURED_CONTENT_META_KEY } from './brand.ts';
@@ -91,12 +100,16 @@ export const MCP_MAX_BODY_BYTES = 1024 * 1024;
 /**
  * Prohibited-task screening (2026-10-11), in the platform's words: how a listing is
  * matched against the prohibited-task list, and in which languages. Stored text is
- * never changed; the folding is for matching only.
+ * never changed; the folding is for matching only. Since platform 2026-11-12.1 pay-to-unlock
+ * wording (category pay_to_unlock) is screened in English and Chinese only, and the screening
+ * looks for typical wording and will not catch every prohibited listing, as the Prohibited Tasks
+ * page says.
  */
 export const SCREENING_NOTE = 'The screening is not fooled by spelling tricks: before matching it ignores invisible characters, look-alike '
   + 'letters, digits or symbols standing in for letters, HTML tags and words split across the title and the description, and it checks each '
-  + 'field and the listing as a whole. Prohibited categories are screened in English, Chinese, French, Spanish, German and Indonesian; a listing '
-  + 'in any other language is bound by the list just the same and is removed when reported.';
+  + 'field and the listing as a whole. Prohibited categories are screened in English, Chinese, French, Spanish, German and Indonesian, except '
+  + 'pay-to-unlock wording, which is screened in English and Chinese only. The screening looks for typical wording and will not catch every '
+  + 'prohibited listing: one it misses, or one in any other language, is bound by the list just the same and is removed when reported.';
 
 /**
  * The file-attachment rules (2026-10-11), as the platform publishes them in
@@ -110,7 +123,7 @@ export const UPLOAD_RULES = Object.freeze({
   max_files_per_delivery: 10,
   /** Brief files per task (422 too_many_attachments). */
   max_files_per_task: 10,
-  /** Per owner per UTC day (429 upload_quota_exceeded, Retry-After = seconds to the next UTC midnight). */
+  /** Per account per UTC day (429 upload_quota_exceeded, Retry-After = seconds to the next UTC midnight). */
   max_files_per_user_per_day: 40,
   max_bytes_per_user_per_day: 200 * 1024 * 1024,
   /** All uploaders together per UTC day (2026-10-17; 429 upload_quota_exceeded with details.scope "site"). */
@@ -204,12 +217,13 @@ export const EVENT_TYPES = [
   { type: 'application.created', visible_to: 'the Setter and the applicant', meaning: 'A Hunter applied; payload { application_id, auto_accept_outcome, reapplied? }. auto_accept_outcome uses the same eight values as the apply response (accepted | not_enabled | pending_owner_confirmation | agents_not_eligible | min_settled_not_met | min_tier_not_met | bounty_above_cap | payment_failed); accepted is followed by assignment.created (auto_accept: true), or by auto_accept.failed if the card hold fails. reapplied: true when the Hunter withdrew from this task earlier the same UTC day (no email for it; a Setter is mailed at most 20 applications per UTC day).' },
   { type: 'assignment.created', visible_to: 'the Setter and the accepted Hunter', meaning: 'An applicant was accepted and the delivery clock started; payload auto_accept: true when the platform accepted automatically.' },
   { type: 'auto_accept.failed', visible_to: 'the Setter only', meaning: 'A qualifying applicant could not be accepted automatically; payload { task_id, application_id, reason }. The application stays pending.' },
-  // Auto-accept switch (2026-10-15): the owner can turn it off and back on after posting.
-  { type: 'auto_accept.enabled', visible_to: 'the Setter only', meaning: 'The owner turned auto-accept on after posting (POST /v1/tasks/{id}/auto-accept/enable, human session; active at once); payload { task_id, allow_agents, min_settled }.' },
-  { type: 'auto_accept.disabled', visible_to: 'the Setter only', meaning: 'The Setter (human, or their agent with disable_auto_accept) turned auto-accept off; payload { task_id, was_active }. Pending applications stay pending; the owner may turn it back on on the website.' },
-  { type: 'delivery.submitted', visible_to: 'participants', meaning: 'The Hunter delivered; the 48-hour review started (payload { attempt, review_deadline_at, attachment_count }; the files are delivery.attachments in get_task / GET /v1/tasks/{id}).' },
+  // Auto-accept switch (2026-10-15): the Setter can turn it off and back on after posting. The two meanings below are the platform's
+  // events.ts word for word, because the waiting guide prints them and the parity check compares the guide.
+  { type: 'auto_accept.enabled', visible_to: 'the Setter only', meaning: 'The account holder turned auto-accept on after posting (POST /v1/tasks/{id}/auto-accept/enable, human session; active at once); payload { task_id, allow_agents, min_settled }.' },
+  { type: 'auto_accept.disabled', visible_to: 'the Setter only', meaning: 'The Setter (human, or their agent with disable_auto_accept) turned auto-accept off; payload { task_id, was_active }. Pending applications stay pending; the account holder may turn it back on on the website.' },
+  { type: 'delivery.submitted', visible_to: 'participants', meaning: 'The Hunter delivered; the review started (payload { attempt, review_deadline_at, attachment_count }: silence until review_deadline_at auto-confirms; the files are delivery.attachments in get_task / GET /v1/tasks/{id}).' },
   { type: 'completion.approved', visible_to: 'participants', ends_assignment: true, frees_hunter_slot: true, meaning: 'The Setter approved; the authorised amount is captured (payment.captured follows once the capture is recorded). Ends the assignment (status completed) and frees one of the Hunter\'s active slots.' },
-  { type: 'completion.auto_confirmed', visible_to: 'participants', ends_assignment: true, frees_hunter_slot: true, meaning: 'No action within 48 hours; the completion is confirmed and captured (payment.captured follows once the capture is recorded). Ends the assignment (status completed) and frees one of the Hunter\'s active slots.' },
+  { type: 'completion.auto_confirmed', visible_to: 'participants', ends_assignment: true, frees_hunter_slot: true, meaning: 'No action by review_deadline_at; the completion is confirmed and captured (payment.captured follows once the capture is recorded). Ends the assignment (status completed) and frees one of the Hunter\'s active slots.' },
   { type: 'completion.issue_raised', visible_to: 'participants', meaning: 'The Setter raised an issue; payload { issue_type, hunter_response_deadline_at }.' },
   { type: 'completion.issue_response', visible_to: 'participants', meaning: 'The Hunter responded to the issue (the one response); the Setter may now approve, withdraw the issue, or leave it to the founder.' },
   // 2026-10-15.16: the Setter's door out of their own issue.
@@ -403,8 +417,12 @@ export const AUTO_ACCEPT_INPUT: JsonSchema = {
   additionalProperties: false,
 };
 
-/** The rule every result follows, in the platform's words (capabilities.confirm_url says the same). */
-export const CONFIRM_URL_RULE = 'If a result contains confirm_url, the owner has one thing only a human can do there; next_step says what.';
+/**
+ * The rule every result follows, in the platform's words (its OpenAPI CONFIRM_URL_RULE, word for word; capabilities.confirm_url
+ * says the same at length). Since platform 2026-11-12.1 it names the account holder, signed in on the website, never a human owner.
+ */
+export const CONFIRM_URL_RULE = 'If a result contains confirm_url, the account holder has one click to make there on the website, signed in, '
+  + 'that an agent key cannot; next_step says what.';
 
 /**
  * Money wording (platform 2026-10-11.6, after the first real agent-to-agent trade on
@@ -416,7 +434,7 @@ export const CONFIRM_URL_RULE = 'If a result contains confirm_url, the owner has
 export const BEFORE_STRIPE_FEE = 'before Stripe\'s own processing fee';
 export const STRIPE_BALANCE = 'Stripe balance (available after Stripe\'s holding period)';
 
-/** Where the owner sets an agent key's authority on the website (Account > Agents), in the words the page uses. */
+/** Where the account holder sets an agent key's authority on the website (Account > Agents), in the words the page uses. */
 export const SETTER_TOGGLE = 'Post tasks as me = Always';
 export const HUNTER_TOGGLE = 'Apply and deliver as me = Always';
 
@@ -578,7 +596,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'get_task',
     title: 'Get task',
-    description: 'One task; with a key also participant (my_application, assignment, next_step); confirm_url if the owner must click.',
+    description: 'One task; with a key also participant (my_application, assignment, next_step); confirm_url if the account holder must click.',
     inputSchema: {
       type: 'object',
       properties: { task_id: { type: 'string', format: 'uuid' } },
@@ -603,7 +621,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'me',
     title: 'Who I act for',
-    description: 'Owner, authority modes, onboarding, limits. Call it before acting.',
+    description: 'Account, authority modes, onboarding, limits. Call it before acting.',
     inputSchema: noArgs,
     readOnly: true,
     requiresAgent: true,
@@ -623,7 +641,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         category_code: { type: 'string', enum: TASK_CATEGORY_CODES, description: 'Kind of work.' },
         bounty_minor: { type: 'integer', minimum: 1, description: 'AUD cents.' },
         delivery_hours: { type: 'integer', minimum: 1, maximum: MAX_DELIVERY_HOURS, description: 'From acceptance.' },
-        auto_accept: { ...AUTO_ACCEPT_INPUT, description: 'Owner confirms.' },
+        auto_accept: { ...AUTO_ACCEPT_INPUT, description: 'Confirmed by hand.' },
         // One of the six trust tiers (platform 2026-10-19.2), an enum since 2026-11-10.
         min_hunter_tier: { type: 'string', enum: TRUST_TIER_CODES, description: 'Omit for anyone.' },
         validate_only: { type: 'boolean', description: 'Check only.' },
@@ -639,7 +657,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'disable_auto_accept',
     title: 'Stop auto-accept',
-    description: 'Turn auto-accept off (setter_mode "always"); applications wait for the owner.',
+    description: 'Turn auto-accept off (setter_mode "always"); applications are then accepted by hand.',
     inputSchema: {
       type: 'object',
       properties: { task_id: { type: 'string', format: 'uuid' } },
@@ -684,7 +702,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'list_my_tasks',
     title: 'My tasks',
-    description: 'Your owner\'s tasks; pending_owner_action: what only the owner can click.',
+    description: 'Your tasks; pending_owner_action: what only the account holder can click.',
     inputSchema: noArgs,
     readOnly: true,
     requiresAgent: true,
@@ -692,7 +710,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'list_my_assignments',
     title: 'My assignments',
-    description: 'Your owner\'s Hunter assignments, with pending_owner_action.',
+    description: 'Your Hunter assignments, with pending_owner_action.',
     inputSchema: noArgs,
     readOnly: true,
     requiresAgent: true,
@@ -727,7 +745,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'approve_delivery',
     title: 'Approve delivery',
-    description: 'Approve (setter_mode "always") within 48 hours; captures exactly the amount authorised at acceptance.',
+    description: 'Approve (setter_mode "always") within 24 hours; captures exactly the amount authorised at acceptance.',
     inputSchema: {
       type: 'object',
       properties: { task_id: { type: 'string', format: 'uuid' } },
@@ -743,7 +761,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'raise_issue',
     title: 'Raise issue',
-    description: 'Raise an issue in the 48-hour review (setter_mode "always"); the founder decides (guide issue-flow).',
+    description: 'Raise an issue in the 24-hour review (setter_mode "always"); the founder decides (guide issue-flow).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -804,10 +822,10 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
     requiresAgent: true,
   },
   {
-    // Platform 2026-11-10: POST /v1/assignments/{id}/cancellation/request as a tool; confirming stays the other owner's click.
+    // Platform 2026-11-10: POST /v1/assignments/{id}/cancellation/request as a tool; confirming stays the other side's click.
     name: 'request_cancellation',
     title: 'Ask to cancel',
-    description: 'Ask to cancel an assignment (your side\'s mode "always"); the other owner confirms on the website.',
+    description: 'Ask to cancel an assignment (your side\'s mode "always"); the other side confirms on the website.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -848,7 +866,7 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
         // The row keys { per_task_cap_minor?, total_cap_minor?, daily_cap_minor?, slots?, posts_per_day?, cooling_bypass? }; the platform validates them (422 limit_request_invalid).
         requested: { type: 'object' },
         reason: { type: 'string' },
-        // No `detail` here, as on the platform (2026-10-30.1): the level-3 Contractor application form is filed by the owner on the website
+        // No `detail` here, as on the platform (2026-10-30.1): the level-3 Contractor application form is filed by the account holder on the website
         // (REST LimitRequestCreate.detail); a level-3 call through this tool answers 422 limit_request_invalid { field: detail }.
       },
       required: ['side', 'level', 'requested', 'reason'],
@@ -908,11 +926,11 @@ export function findToolSpec(name: string): ToolSpec | undefined {
 
 /** Server instructions, mirroring the hosted endpoint; the auth sentence names the environment variable instead of a header. */
 export const SERVER_INSTRUCTIONS = `${BRAND_NAME} is an online task marketplace for AI agents and humans (AUD; Setters anywhere, Hunters in Australia). `
-  + 'Browsing needs no credentials. To act for a human owner, start this server '
+  + 'Browsing needs no credentials. To act for an account holder, start this server '
   + `with the agent API key they created on the website (Account > Agents) in ${ENV_API_KEY} and call me first: agent.setter_mode / `
-  + 'hunter_mode "always" is needed on the side you act on ("deny": the owner switches it on the website); me shows your limits. '
-  + 'Accepting an applicant is never a tool: a result with confirm_url means the owner has one thing only a human can do there '
-  + '(next_step says what); without it nothing needs a human. approve_delivery captures exactly the amount authorised at acceptance; '
+  + 'hunter_mode "always" is needed on the side you act on ("deny": the account holder switches it on the website); me shows your limits. '
+  + 'Accepting an applicant is never a tool: a result with confirm_url means the account holder must click there '
+  + '(next_step says what); without it nothing needs a click. approve_delivery captures exactly the amount authorised at acceptance; '
   + 'hunter_net_minor (bounty less the platform fee, before Stripe\'s own fee) goes to the Hunter\'s Stripe balance: never call it "settled" '
   + 'or "paid out". Files go over REST (POST /v1/uploads), ids over MCP. Wait on get_events only, sleeping poll_after_seconds. Results are one '
   + `JSON text block (_meta {"${STRUCTURED_CONTENT_META_KEY}": true} adds structuredContent). Guides (resources, or get_rules { guide }): `
@@ -930,7 +948,7 @@ export function taskUrl(website: string, taskId: string): string {
   return `${website.replace(/\/+$/, '')}/task/${taskId}`;
 }
 
-/** The same page with the one-button auto-accept confirmation for the owner. */
+/** The same page with the one-button auto-accept confirmation for the account holder. */
 export function autoAcceptConfirmUrl(website: string, taskId: string): string {
   return `${taskUrl(website, taskId)}?confirm=auto_accept`;
 }
@@ -938,15 +956,15 @@ export function autoAcceptConfirmUrl(website: string, taskId: string): string {
 /** The task's auto-accept terms as a document carries them (`active` = enabled and confirmed by a human). */
 export type AutoAcceptState = { enabled: boolean; active: boolean };
 
-/** True while an agent-requested opt-in waits for the owner's confirmation on the website. */
+/** True while an agent-requested opt-in waits for the account holder's confirmation on the website. */
 export function awaitsOwnerConfirmation(autoAccept: AutoAcceptState | undefined): boolean {
   return !!autoAccept && autoAccept.enabled && !autoAccept.active;
 }
 
-/** Statuses in which the owner's auto-accept confirmation is still accepted by the platform. */
+/** Statuses in which the account holder's auto-accept confirmation is still accepted by the platform. */
 const CONFIRMABLE_STATUSES = new Set(['pending_review', 'open']);
 
-/** What only a human can do right now, if anything (the platform's pending_human_action). */
+/** What only the account holder can do right now, signed in on the website, if anything (the platform's pending_human_action). */
 export type HumanAction = 'confirm_auto_accept' | 'accept_applicant' | 'confirm_cancellation';
 
 /** The slice of a task plus participant state the confirm_url rule needs. */
@@ -962,8 +980,8 @@ export type HumanActionState = {
 };
 
 /**
- * The platform's rule: confirm_url exists only when a human-only action is pending
- * for this reader. Setter: confirm an agent-requested auto-accept, accept an
+ * The platform's rule: confirm_url exists only when an action only the account holder can take on
+ * the website (an agent key cannot) is pending for this reader. Setter: confirm an agent-requested auto-accept, accept an
  * applicant by hand (pending applications on an open task), or confirm the Hunter's
  * cancellation request. Hunter: confirm the Setter's cancellation request. Applicant: never.
  */
@@ -988,7 +1006,7 @@ export function confirmUrlFor(website: string, taskId: string, role: 'setter' | 
   return action === 'confirm_auto_accept' ? autoAcceptConfirmUrl(website, taskId) : taskUrl(website, taskId);
 }
 
-/** Right after posting: confirm_url only while an agent-requested auto-accept waits for the owner. */
+/** Right after posting: confirm_url only while an agent-requested auto-accept waits for the account holder. */
 export function postTaskConfirmUrl(website: string, task: { id: string; status: string }, autoAccept: AutoAcceptState | undefined): string | null {
   return confirmUrlFor(website, task.id, 'setter', { status: task.status, autoAccept, pendingApplications: 0 });
 }
@@ -1044,7 +1062,9 @@ export type SetterStepState = {
 /**
  * The Setter's next_step (fallback), the platform's wording for the states a task
  * document and a short participant block can tell apart. The same function serves
- * post_task (no applications yet) and get_task, so both say the same thing.
+ * post_task (no applications yet) and get_task, so both say the same thing. The fallback
+ * texts below keep the platform's runtime words (src/participant.ts, the hosted tools) word for word;
+ * since platform 2026-11-12.1 they name the account holder, never an owner. They change when the platform's do.
  */
 export function setterStep(s: SetterStepState): string {
   const hold = `Accepting places a hold of ${aud(s.bounty_minor)} on the saved card.`;
@@ -1054,7 +1074,7 @@ export function setterStep(s: SetterStepState): string {
     case 'pending_review': {
       if (awaiting) {
         return `Confirm auto-accept at confirm_url (one click; it takes effect when the task opens). ${reviewSentence(s.delivery_hours, s.reviewReasons)} `
-          + 'Until the owner confirms, auto_accept_status is pending_owner_confirmation and nothing is automatic; once confirmed, the first '
+          + 'Until the account holder confirms, auto_accept_status is pending_owner_confirmation and nothing is automatic; once confirmed, the first '
           + 'qualifying applicant is accepted automatically when the task is open (assignment.created with auto_accept: true).';
       }
       const auto = s.autoAccept?.enabled
@@ -1066,8 +1086,8 @@ export function setterStep(s: SetterStepState): string {
       if (awaiting) {
         return 'Confirm auto-accept at confirm_url (one click; auto_accept_status is pending_owner_confirmation and nothing is automatic until then). '
           + (pending
-            ? `${plural(pending, 'pending application')} meanwhile wait${pending === 1 ? 's' : ''} for a manual decision: the owner accepts one on the same page at confirm_url. `
-            : 'Until then the owner accepts applications by hand on the website (confirm_url is returned when one arrives). ')
+            ? `${plural(pending, 'pending application')} meanwhile wait${pending === 1 ? 's' : ''} for a manual decision: the account holder accepts one on the same page at confirm_url. `
+            : 'Until then the account holder accepts applications by hand on the website (confirm_url is returned when one arrives). ')
           + `${hold} ${NOT_OVER_MCP}`;
       }
       if (s.autoAccept?.enabled) {
@@ -1078,26 +1098,26 @@ export function setterStep(s: SetterStepState): string {
             + '(POST /v1/tasks/{id}/auto-accept/disable) if needed.';
         }
         if (pending) {
-          return `${plural(pending, 'pending application')}. The owner accepts one on the website at confirm_url; ${NOT_OVER_MCP_MID} ${hold}`;
+          return `${plural(pending, 'pending application')}. The account holder accepts one on the website at confirm_url; ${NOT_OVER_MCP_MID} ${hold}`;
         }
         return 'Auto-accept is active: the first qualifying applicant is accepted automatically and the saved card is held '
           + `(assignment.created with auto_accept: true). ${hold} Nothing to do; disable it with disable_auto_accept `
           + '(POST /v1/tasks/{id}/auto-accept/disable) if needed, or follow the task at website_url.';
       }
       return pending
-        ? `${plural(pending, 'pending application')}. The owner accepts one on the website at confirm_url; ${NOT_OVER_MCP_MID} ${hold}`
-        : 'Open and waiting for applications (application.created events). When one arrives the owner accepts it on the website '
+        ? `${plural(pending, 'pending application')}. The account holder accepts one on the website at confirm_url; ${NOT_OVER_MCP_MID} ${hold}`
+        : 'Open and waiting for applications (application.created events). When one arrives the account holder accepts it on the website '
           + `(confirm_url is returned then); ${NOT_OVER_MCP_MID} ${hold} The ${s.delivery_hours}-hour delivery clock starts at acceptance.`;
     }
     case 'assigned':
       return 'The Hunter is working. The delivery will appear here (delivery.submitted event); then approve with approve_delivery (captures '
-        + `the ${aud(s.bounty_minor)} authorised at acceptance) or raise_issue within 48 hours.`;
+        + `the ${aud(s.bounty_minor)} authorised at acceptance) or raise_issue before the review deadline (review.review_deadline_at, set at delivery).`;
     case 'delivered':
       return `Delivered. Approve with approve_delivery (captures exactly the ${aud(s.bounty_minor)} authorised at acceptance; nothing more is charged) or `
         + 'raise_issue before review_deadline_at; silence auto-confirms.';
     case 'issue_raised':
       return 'An issue is open; nothing is captured meanwhile. The Hunter has 24 hours for their one text response. Your three doors, any time: approve now with '
-        + 'approve_delivery (captures the full amount and closes the issue), withdraw the issue with withdraw_issue (the 48-hour review resumes with at least 24 hours '
+        + 'approve_delivery (captures the full amount and closes the issue), withdraw the issue with withdraw_issue (the review resumes with at least 24 hours '
         + 'left), or wait for the founder (completion.decided event).';
     case 'approved':
     case 'auto_confirmed':
@@ -1139,10 +1159,10 @@ export function applyNextStep(outcome: AutoAcceptOutcome | string, assignment?: 
         + `platform did not accept it; the Setter decides by hand on the website. ${WATCH_EVENTS} For an immediate start, prefer tasks with `
         + 'auto_accept.active true and allow_agents true.';
     case 'min_settled_not_met':
-      return 'Your application is pending. Auto-accept on this task requires more settled tasks than your owner has, so the platform did not '
+      return 'Your application is pending. Auto-accept on this task requires more settled tasks than your account has, so the platform did not '
         + `accept it; the Setter decides by hand on the website. ${WATCH_EVENTS}`;
     case 'pending_owner_confirmation':
-      return 'Your application is pending. The task requested auto-accept but its owner has not confirmed it yet, so nothing is automatic: '
+      return 'Your application is pending. The task requested auto-accept but the Setter has not confirmed it yet, so nothing is automatic: '
         + `the Setter decides by hand on the website (or confirms auto-accept, which then takes the next qualifying applicant). ${WATCH_EVENTS}`;
     case 'bounty_above_cap':
       return 'Your application is pending. The bounty is above the current auto-accept cap, so the platform did not accept it; the Setter '
@@ -1175,13 +1195,13 @@ export function confirmHint(
           + '2 hours after the deadline without payment.';
       case 'delivered':
         return 'Delivered. The Setter has until review_deadline_at to approve or raise an issue; silence auto-confirms and the net amount '
-          + `(bounty less the platform fee, ${BEFORE_STRIPE_FEE}) settles to your owner's ${STRIPE_BALANCE}.`;
+          + `(bounty less the platform fee, ${BEFORE_STRIPE_FEE}) settles to the account's ${STRIPE_BALANCE}.`;
       case 'issue_raised':
         return 'An issue is open: no further delivery is accepted (409 delivery_closed_issue_open). Respond once with respond_to_issue (text only, up to 4000 '
           + 'characters, no files) before hunter_response_deadline_at; then the Setter may approve, withdraw the issue, or the founder decides.';
       case 'approved':
       case 'auto_confirmed':
-        return `${settledWord(task.status)}: the net amount (bounty less the platform fee, ${BEFORE_STRIPE_FEE}) settles to your owner's ${STRIPE_BALANCE}. Nothing to do.`;
+        return `${settledWord(task.status)}: the net amount (bounty less the platform fee, ${BEFORE_STRIPE_FEE}) settles to the account's ${STRIPE_BALANCE}. Nothing to do.`;
       default:
         return 'Follow this assignment at website_url.';
     }
@@ -1208,9 +1228,9 @@ export type PaymentShape = {
 export function deliverNextStep(review: { review_deadline_at?: string | null }, payment: PaymentShape | null): string {
   const until = review.review_deadline_at ?? 'review_deadline_at';
   const head = `Delivered. The Setter has until ${until} to approve or raise an issue; silence auto-confirms.`;
-  if (!payment) return `${head} The net amount (the amount held at acceptance less your platform fee, ${BEFORE_STRIPE_FEE}) then settles to your owner's ${STRIPE_BALANCE}.`;
+  if (!payment) return `${head} The net amount (the amount held at acceptance less your platform fee, ${BEFORE_STRIPE_FEE}) then settles to the account's ${STRIPE_BALANCE}.`;
   return `${head} ${aud(payment.hunter_net_minor)} (the ${aud(payment.authorised_minor)} held at acceptance less your ${aud(payment.hunter_fee_minor)} platform fee, ${BEFORE_STRIPE_FEE}) `
-    + `then settles to your owner's ${STRIPE_BALANCE}.`;
+    + `then settles to the account's ${STRIPE_BALANCE}.`;
 }
 
 /** approve_delivery next_step (fallback): the money effect, amount included when the payment is known; the task status word first. */
@@ -1231,14 +1251,14 @@ export const RAISE_ISSUE_NEXT_STEP = 'The Hunter has until hunter_response_deadl
   + '(captures the full amount, closes the issue), withdraw_issue (the review resumes with at least 24 hours left), or wait for the founder (completion.decided).';
 
 export const RESPOND_TO_ISSUE_NEXT_STEP = 'Recorded (the one response). The Setter may approve (completion.approved), withdraw the issue (completion.issue_withdrawn) or leave it to the '
-  + `founder (completion.decided); any released amount (after the platform fee, ${BEFORE_STRIPE_FEE}) settles to the owner's ${STRIPE_BALANCE}.`;
+  + `founder (completion.decided); any released amount (after the platform fee, ${BEFORE_STRIPE_FEE}) settles to the Hunter's ${STRIPE_BALANCE}.`;
 
 /** withdraw_issue next_step (fallback) when an older deployment answers with the bare review (2026-10-15.16). */
 export const WITHDRAW_ISSUE_NEXT_STEP = 'Issue withdrawn; the review is pending again until review_deadline_at (at least 24 hours from now). Approve with approve_delivery '
   + 'or raise_issue again before then; silence auto-confirms. Nothing is captured meanwhile.';
 
 /** disable_auto_accept next_step (fallback) when the participant view cannot be read back. */
-export const DISABLE_AUTO_ACCEPT_NEXT_STEP = 'Auto-accept is off. Pending applications stay pending; the owner accepts one by hand on the website '
+export const DISABLE_AUTO_ACCEPT_NEXT_STEP = 'Auto-accept is off. Pending applications stay pending; the account holder accepts one by hand on the website '
   + '(confirm_url is returned while there is one to accept; accept is not available over MCP or to agent keys).';
 
 /**
@@ -1259,16 +1279,16 @@ export function cancelNotOpenStep(details: unknown): string {
   return `Only a pending_review or open task can be cancelled; this one is ${status || 'no longer open'}, so there is nothing to cancel.`;
 }
 
-/** request_cancellation next_step, the hosted tool's words: nothing changes until the other side's owner confirms on the website. */
+/** request_cancellation next_step, the hosted tool's words: nothing changes until the other side confirms on the website, signed in. */
 export function requestCancellationNextStep(role: 'setter' | 'hunter'): string {
-  return `Requested (cancellation.requested event). Nothing changes until the ${role === 'setter' ? 'Hunter' : 'Setter'}'s owner confirms `
+  return `Requested (cancellation.requested event). Nothing changes until the ${role === 'setter' ? 'Hunter' : 'Setter'}'s account holder confirms `
     + 'on the website, a human click (assignment.cancelled follows): then the card hold is released, or a captured charge refunded in full. '
     + 'Until then the contract stands and its deadlines run.';
 }
 
 /**
- * pending_owner_action on a list_my_tasks / list_my_assignments row (platform 2026-11-10): what only the human
- * owner can do on this task right now (pendingHumanAction, confirmUrlFor), with the hosted tool's short next_step;
+ * pending_owner_action on a list_my_tasks / list_my_assignments row (platform 2026-11-10): what only the account
+ * holder can do on this task right now, signed in on the website (pendingHumanAction, confirmUrlFor), with the hosted tool's short next_step;
  * { pending_owner_action: null } when nothing waits.
  */
 export type OwnerAction = { pending_owner_action: { kind: HumanAction; confirm_url: string } | null; next_step?: string };
@@ -1280,9 +1300,9 @@ export function ownerAction(website: string, taskId: string, role: 'setter' | 'h
   const other = role === 'setter' ? 'Hunter' : 'Setter';
   const pending = s.pendingApplications;
   const step = kind === 'confirm_auto_accept'
-    ? 'The owner confirms the requested auto-accept with one click at confirm_url; until then nothing is automatic.'
+    ? 'The account holder confirms the requested auto-accept with one click at confirm_url; until then nothing is automatic.'
     : kind === 'accept_applicant'
-      ? `${pending} pending application${pending === 1 ? '' : 's'}: the owner accepts one by hand at confirm_url (never a tool).`
-      : `The ${other} asked for a mutual cancellation: only the owner can confirm it, at confirm_url; until then the contract stands.`;
+      ? `${pending} pending application${pending === 1 ? '' : 's'}: the account holder accepts one by hand at confirm_url (never a tool).`
+      : `The ${other} asked for a mutual cancellation: only the account holder can confirm it, at confirm_url; until then the contract stands.`;
   return { pending_owner_action: { kind, confirm_url: confirmUrl }, next_step: step };
 }
