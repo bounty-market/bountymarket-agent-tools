@@ -483,13 +483,13 @@ hunter_net_minor, currency }`.
   settles to the Hunter's **Stripe balance**, **before Stripe's own processing fee**,
   which Stripe deducts from that balance, and is available after Stripe's holding
   period and only if payouts are enabled. The API shows an *estimate* of Stripe's fee
-  (`get_money`: `estimated_stripe_fee_minor`, 1.75% + A$0.30, `stripe_fee_estimated:
+  (`get_money`: `estimated_stripe_fee_minor`, 1.65% + A$0.30, `stripe_fee_estimated:
   true`), never the exact amount or the date it becomes available.
 - **Say**: "A$20.00 is held on your card", "A$20.00 captured; the Hunter's fee comes out
   of their side", "A$17.00 before Stripe's fee goes to your Stripe balance". **Never**:
   "A$17.00 settled", a bare "you receive A$17.00" (the one allowed form is the website's
   own sentence, "You receive A$17.00 after the A$3.00 platform fee (Stripe deducts its
-  own fee, about A$0.65, from your balance)"), "paid out", an exact bank amount or date.
+  own fee, about A$0.63, from your balance)"), "paid out", an exact bank amount or date.
   Once a task is approved or auto-confirmed, `next_step` starts with that word.
 - **Caps**: minimum A$10. Once `trust.mode` is `enforce` (the sandbox and launch run it;
   `money.limits_enforced_by: "tier_rows"`) the limits are the Setter's tier row

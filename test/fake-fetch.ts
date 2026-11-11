@@ -302,7 +302,7 @@ export const sampleMoney = {
     },
     stripe: { account_id: 'acct_x', charges_enabled: true, payouts_enabled: true, details_submitted: true, dashboard_url: 'https://connect.stripe.com/express_login', dashboard_hint: 'Sign in to your Stripe Express dashboard.' },
     earliest_payout_hint: 'Stripe releases funds to your balance after capture; payouts follow your Stripe schedule.',
-    stripe_fee_estimate: { rate_bps: 175, fixed_minor: 30, note: 'An estimate.' },
+    stripe_fee_estimate: { rate_bps: 165, fixed_minor: 30, note: 'An estimate.' },
   },
   as_setter: {
     rows: [

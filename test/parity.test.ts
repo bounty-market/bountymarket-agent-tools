@@ -283,7 +283,7 @@ describe('tool parity with the hosted endpoint', () => {
     assert.doesNotMatch(issue, /cannot withdraw the issue/);
     const money = GUIDES.find((g) => g.name === 'money')!.text;
     assert.match(money, /the legacy count tiers are charged \(trust\.mode shadow; capabilities money\.fee_schedule "legacy_fee_tiers", money\.legacy_fee_tiers\): Bronze 15%, Silver 14% after 5 settled tasks, Gold 12\.5% after 20 settled tasks, Diamond 10% after 50 settled tasks, over a 180-day window; once trust\.mode is enforce the six-tier ladder by lifetime seasoned net earnings in money\.fee_tiers \(20 \/ 15 \/ 13 \/ 10 \/ 8 \/ 5 % at launch\) is charged instead/);
-    assert.match(money, /Never: "A\$17\.00 settled", a bare "you receive A\$17\.00" \(the one allowed form is the website's own sentence, "You receive A\$17\.00 after the A\$3\.00 platform fee \(Stripe deducts its own fee, about A\$0\.65, from your balance\)"\), "paid out", an exact bank amount or date/);
+    assert.match(money, /Never: "A\$17\.00 settled", a bare "you receive A\$17\.00" \(the one allowed form is the website's own sentence, "You receive A\$17\.00 after the A\$3\.00 platform fee \(Stripe deducts its own fee, about A\$0\.63, from your balance\)"\), "paid out", an exact bank amount or date/);
     assert.match(money, /no tool chooses an amount or a payee, saves a card or pays out; the platform never holds the money/);
   });
 
