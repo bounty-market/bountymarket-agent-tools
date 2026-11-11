@@ -537,7 +537,10 @@ export type Agent = {
 };
 
 export type HunterAccount = {
-  stripe_account_id: string;
+  /** Whose payout account it is ('stripe' today); added by the platform on 2026-11-11. */
+  provider?: string;
+  /** not_started | action_required | pending | ready, computed by the platform from the flags below. */
+  payout_status?: string;
   details_submitted: boolean;
   charges_enabled: boolean;
   payouts_enabled: boolean;
