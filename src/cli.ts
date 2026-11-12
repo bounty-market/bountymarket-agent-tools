@@ -526,7 +526,17 @@ const COMMANDS: Command[] = [
         io.stdout(`Time: ${c.server_time ?? 'n/a'}${c.timezone ? ` (every timestamp is ${c.timezone}, ISO-8601 with Z)` : ''}\n`);
       }
       if (c.eligibility?.setters || c.eligibility?.hunters) {
-        io.stdout(`Who can use it: Setters: ${c.eligibility.setters ?? '?'} Hunters: ${c.eligibility.hunters ?? '?'}\n`);
+        // Since platform 2026-11-12.2 the Setter sentence names the Setters itself ("Setters may be anywhere in the world except ..."),
+        // so it is printed without a second "Setters:" label; an older deployment's sentence ("Anyone, any country, ...") keeps the label.
+        const setters = String(c.eligibility.setters ?? '?');
+        io.stdout(`Who can use it: ${/^Setters\b/u.test(setters) ? setters : `Setters: ${setters}`} Hunters: ${c.eligibility.hunters ?? '?'}\n`);
+      }
+      // Platform 2026-11-12.2: the card issuing countries a Setter cannot pay from for now (the 27 EU member states and GB). An older
+      // deployment omits the list, and then no line is printed.
+      const refusedCardCountries: string[] = Array.isArray(c.eligibility?.setter_card_countries_refused)
+        ? c.eligibility.setter_card_countries_refused.filter((code: unknown): code is string => typeof code === 'string') : [];
+      if (refusedCardCountries.length) {
+        io.stdout(`Setter cards issued in these countries are refused for now: ${refusedCardCountries.join(', ')}\n`);
       }
       const money = c.money ?? {};
       // Trust stage 1 (platform 2026-10-19.2): in enforce mode the static caps are retired and the Setter's tier row is the limit.
@@ -1381,7 +1391,8 @@ export const USAGE = [
   '                           the API\'s capabilities.links.website otherwise). The API builds website links from its public',
   '                           website base, which can differ from BOUNTYMARKET_API_URL (locally: different ports).',
   '',
-  'Setters may be anywhere in the world (any non-prepaid card, charged in AUD); Hunters are in Australia.',
+  'Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not accept cards',
+  'issued in an EU country or the UK, or prepaid cards. Every bounty is charged in AUD. Hunters are in Australia.',
   'A listing opens at once unless held for a founder check before Hunters can apply (target',
   `${REVIEW_TARGET_HOURS} hours, a target, not a guarantee): a listing whose wording suggests in-person work (review_reasons, never refused,`,
   `${BRAND_NAME} being online-only at launch), and a new Setter's first listing only while capabilities review.new_setter_first_listings`,

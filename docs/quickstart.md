@@ -11,7 +11,9 @@ a later release makes live the default.
 
 `bhk_...` is an agent API key the account holder creates on the website under
 **Account > Agents**; leave it out to browse read-only. Setters may be anywhere in the
-world (non-prepaid card, charged in AUD); Hunters must be in Australia.
+world except the European Union and the United Kingdom: for now the platform does not
+accept cards issued in an EU country or the UK, or prepaid cards. Every bounty is charged
+in AUD. Hunters must be in Australia.
 
 Three ways in:
 

@@ -1015,9 +1015,12 @@ describe('cli: commands', () => {
         ceilings: { max_task_bounty_minor: 50000, new_setter_task_cap_minor: 10000, setter_daily_cap_minor: 100000, site_daily_cap_minor: 500000 },
         last_changed_at: null, description: 'The money caps grow with the marketplace\'s track record.',
       },
+      // The platform's shape since 2026-11-12.2: the Setter sentence, the refused card issuing countries (the 27 EU member states and GB) and the rule.
       eligibility: {
-        setters: 'Anyone, any country, with a non-prepaid card; charged in AUD.',
+        setters: 'Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not accept cards issued in an EU country or the UK, or prepaid cards. Every bounty is charged in AUD.',
         hunters: 'Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement.',
+        setter_card_countries_refused: ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'],
+        setter_card_country_rule: 'The platform checks the card\'s issuing country. A card issued in a country of setter_card_countries_refused is refused when it is saved (it is not kept and is removed from the Stripe customer) and again before any hold at acceptance: 412 card_country_not_supported with details.country. Posting a task needs no card; GET /v1/me readiness shows the setter gap card_country until the account holder saves a card issued elsewhere.',
       },
       agent_actions: { accept_application: 'human_or_pre_authorised_auto_accept', approve_delivery: 'agent_allowed', raise_issue: 'agent_allowed', respond_to_issue: 'agent_allowed' },
       tasks: {
@@ -1044,7 +1047,8 @@ describe('cli: commands', () => {
     assert.equal(await run(['capabilities'], sandbox.cli), 0);
     assert.match(sandbox.out(), /Mode: sandbox; live charges off/);
     assert.match(sandbox.out(), /Time: 2026-11-02T00:00:00\.000Z \(every timestamp is UTC, ISO-8601 with Z\)/);
-    assert.match(sandbox.out(), /Who can use it: Setters: Anyone, any country, with a non-prepaid card; charged in AUD\. Hunters: Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement\./);
+    assert.match(sandbox.out(), /^Who can use it: Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not accept cards issued in an EU country or the UK, or prepaid cards\. Every bounty is charged in AUD\. Hunters: Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement\.$/mu);
+    assert.match(sandbox.out(), /^Setter cards issued in these countries are refused for now: AT, BE, BG, CY, CZ, DE, DK, EE, ES, FI, FR, GB, GR, HR, HU, IE, IT, LT, LU, LV, MT, NL, PL, PT, RO, SE, SI, SK$/mu);
     assert.match(sandbox.out(), /Auto-accept: a task of at most A\$50\.00 may accept the first qualifying applicant automatically; the account holder confirms the opt-in on the website\n/);
     assert.match(sandbox.out(), /Agent actions \(sandbox and live alike\): accept_application human_or_pre_authorised_auto_accept; approve_delivery agent_allowed; raise_issue agent_allowed; respond_to_issue agent_allowed/);
     assert.match(sandbox.out(), /Bounty: A\$10\.00 to A\$100\.00 per task \(new Setters: A\$50\.00 until their first listing is approved\); A\$200\.00 per Setter per day/);
@@ -1058,11 +1062,18 @@ describe('cli: commands', () => {
     assert.match(sandbox.out(), /Activity: 1 open tasks; last 30 days: 0 settled, 0 active Hunters, median n\/a \(fewer than 3 samples\) to first application, median n\/a \(fewer than 5 samples\) from application to acceptance \(as of 2026-11-02T00:00:00\.000Z\)/);
     assert.match(sandbox.out(), /Event types: task\.pending_review, task\.published/);
     assert.match(sandbox.out(), /confirm_url rule: confirm_url appears in a result ONLY when the account holder has one thing to do on the website, signed in, that an agent key cannot do/);
-    // An older deployment without tasks.review_window_hours: the Delivery line names no review window rather than a guess.
-    const older = io(ENV, routes({ 'GET /v1/capabilities': { json: { ...doc, tasks: { ...doc.tasks, review_window_hours: undefined } } } }));
+    // An older deployment without tasks.review_window_hours: the Delivery line names no review window rather than a guess. Before
+    // platform 2026-11-12.2 eligibility had no card-country list and its Setter sentence did not name the Setters: no list line, the label stays.
+    const older = io(ENV, routes({ 'GET /v1/capabilities': { json: {
+      ...doc,
+      tasks: { ...doc.tasks, review_window_hours: undefined },
+      eligibility: { setters: 'Anyone, any country, with a non-prepaid card; charged in AUD.', hunters: doc.eligibility.hunters },
+    } } }));
     assert.equal(await run(['capabilities'], older.cli), 0);
     assert.match(older.out(), /Delivery: 1-96 hours \(at most 4 days\); the clock starts at acceptance, not at posting\n/);
     assert.doesNotMatch(older.out(), /review window/);
+    assert.match(older.out(), /^Who can use it: Setters: Anyone, any country, with a non-prepaid card; charged in AUD\. Hunters: Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement\.$/mu);
+    assert.doesNotMatch(older.out(), /refused for now/);
     assert.match(sandbox.out(), /Website: https:\/\/web\.test \(task pages are https:\/\/web\.test\/task\/<task_id>\)/);
     assert.match(sandbox.out(), /API: https:\/\/api\.test\/v1; MCP: https:\/\/api\.test\/mcp/);
     assert.match(sandbox.out(), /Links note: api, openapi, mcp, manifest, policy, capabilities, events, tasks and report are built from the origin that answered this request \(the API\)\. website, task_page, rules, terms, privacy and contact are built from the public website base/);

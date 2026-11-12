@@ -14,6 +14,7 @@ import {
   SLOT_FREEING_EVENT_TYPES, TASK_CATEGORY_CODES, TOOL_SPECS, UPLOAD_RULES, approveNextStep, confirmHint, confirmUrlFor, deliverNextStep, describeGuide, describeTool, pendingHumanAction,
   postTaskConfirmUrl, postTaskNextStep, setterStep, validateSchema, visibleToolSpecs,
 } from '../src/tools.ts';
+import { USAGE } from '../src/cli.ts';
 import { HELD_SENTENCE, STEP, UUID_A, UUID_FILE, capturedPayment, heldPayment } from './fake-fetch.ts';
 
 type SnapshotTool = {
@@ -123,7 +124,9 @@ describe('tool parity with the hosted endpoint', () => {
       assert.doesNotMatch(JSON.stringify(t.inputSchema), /\bowner\b/i, t.name);
     }
     assert.doesNotMatch(SERVER_INSTRUCTIONS, /\bowner\b/i);
-    assert.match(SERVER_INSTRUCTIONS, /To act for an account holder, start this server with the agent API key they created on the website/);
+    // Platform 2026-11-12.2: "give this server" (was "start this server with") keeps the instructions within 1,200 characters
+    // now that they say "Setters outside the EU/UK".
+    assert.match(SERVER_INSTRUCTIONS, /To act for an account holder, give this server the agent API key they created on the website/);
     assert.match(SERVER_INSTRUCTIONS, /a result with confirm_url means the account holder must click there \(next_step says what\); without it nothing needs a click\./);
     assert.match(byName.list_my_tasks!.description, /^Your tasks; pending_owner_action: what only the account holder can click\.$/);
     assert.match(byName.list_my_assignments!.description, /^Your Hunter assignments, with pending_owner_action\.$/);
@@ -544,5 +547,41 @@ describe('trust stage 2 (platform 2026-10-30.1) mirrored without a shape change'
     assert.deepEqual(Object.keys(local.inputSchema.properties!), ['side', 'level', 'task_id', 'requested', 'reason']);
     assert.deepEqual((remote.inputSchema as { properties: Record<string, unknown> }).properties, local.inputSchema.properties);
     assert.equal(TOOL_SPECS.filter((t) => /identity/.test(t.name)).length, 0, 'identity verification is a human session on the website; no tool starts it');
+  });
+});
+
+describe('Setter card countries (platform 2026-11-12.2) mirrored without a tool change', () => {
+  // The platform's Setter sentence (its Terms of Service section 2 bullet with "the platform" for "we"; founder decision of
+  // 2026-11-12), word for word wherever the toolkit says where Setters may be.
+  const SETTER_WHERE = 'Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not accept '
+    + 'cards issued in an EU country or the UK, or prepaid cards.';
+  const doc = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+  const flat = (text: string) => text.replace(/\s+/gu, ' ');
+
+  it('the instructions say "Setters outside the EU/UK" as the hosted endpoint does, within 1,200 characters; the errors guide names card_country_not_supported', () => {
+    assert.ok(SERVER_INSTRUCTIONS.includes('(AUD; Setters outside the EU/UK, Hunters in Australia). '), SERVER_INSTRUCTIONS);
+    assert.ok(SERVER_INSTRUCTIONS.length <= 1200, `${SERVER_INSTRUCTIONS.length} chars`);
+    const errors = GUIDES.find((g) => g.name === 'errors')!.text;
+    assert.ok(errors.includes('payment_method_required / prepaid_cards_not_accepted / card_country_not_supported (the Setter saves a card; not prepaid, '
+      + 'and for now not issued in an EU country or the UK: capabilities eligibility.setter_card_countries_refused)'));
+  });
+
+  it('README.md, docs/quickstart.md, SKILL.md and the CLI help state the exception wherever they say where Setters may be', () => {
+    for (const file of ['README.md', 'docs/quickstart.md']) assert.ok(flat(doc(file)).includes(SETTER_WHERE), file);
+    assert.ok(flat(USAGE).includes(SETTER_WHERE), 'bountymarket --help');
+    const skill = doc('SKILL.md');
+    assert.match(skill, /^description: .*\(AUD; Setters outside the EU\/UK, Hunters in Australia\)\. /mu, 'the Skill description, as the instructions');
+    assert.ok(flat(skill).includes('Setters may be anywhere in the world except the European Union and the United Kingdom, paying in AUD'));
+    assert.ok(flat(skill).includes('`payment_method_required` / `prepaid_cards_not_accepted` / `card_country_not_supported`'), 'the 412 family in Errors and limits');
+    assert.ok(flat(skill).includes('`capabilities.eligibility.setter_card_countries_refused`'));
+    assert.ok(doc('README.md').includes('发单人可以身在世界任何地方，欧盟和英国除外：'), 'the Chinese section says the same');
+    for (const file of ['README.md', 'docs/quickstart.md', 'SKILL.md', 'AGENTS.md']) {
+      assert.doesNotMatch(flat(doc(file)), /Setters anywhere|Setters may be anywhere(?! in the world except)|non-prepaid card|任何国家用非预付卡/u, file);
+      // The platform's Terms section 2 names where the Setter is as well as the card (its rulebook keeps that question
+      // open), so the docs say what the platform checks, the card's issuing country, and never that residence does not count.
+      assert.doesNotMatch(flat(doc(file)), /not where the Setter lives|不是发单人住在哪里/u, file);
+    }
+    assert.ok(flat(doc('README.md')).includes('The platform checks the card\'s issuing country.'));
+    assert.doesNotMatch(flat(USAGE), /Setters may be anywhere in the world \(|non-prepaid card/u);
   });
 });

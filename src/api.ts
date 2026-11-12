@@ -1087,12 +1087,29 @@ export type CapabilitiesMoney = Record<string, unknown> & {
   limits_enforced_by?: 'tier_rows' | 'static_caps' | string;
 };
 
-/** `eligibility` member: who may take each side (founder decision D1, 2026-10-07). */
+/**
+ * `eligibility` member: who may take each side (founder decision D1, 2026-10-07; since platform 2026-11-12.2 Setter cards
+ * issued in an EU country or the UK are refused for now). The same object is the manifest's `eligibility` and the policy
+ * document's `launch_rules.eligibility`.
+ */
 export type Eligibility = {
-  /** "Anyone, any country, with a non-prepaid card; charged in AUD." */
+  /**
+   * "Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not
+   * accept cards issued in an EU country or the UK, or prepaid cards. Every bounty is charged in AUD." (Before platform
+   * 2026-11-12.2: "Anyone, any country, with a non-prepaid card; charged in AUD.")
+   */
   setters: string;
   /** "Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement." */
   hunters: string;
+  /**
+   * The card issuing countries a Setter cannot pay from for now: ISO 3166-1 alpha-2 codes, sorted, the 27 EU member states
+   * and `GB` (platform 2026-11-12.2). The platform checks the card's issuing country; such a card is refused
+   * when it is saved and again before any hold at acceptance with 412 `card_country_not_supported` (`details.country`).
+   * Optional: an older deployment omits it.
+   */
+  setter_card_countries_refused?: string[];
+  /** How that list is applied, in the platform's words (platform 2026-11-12.2). Optional: an older deployment omits it. */
+  setter_card_country_rule?: string;
 };
 
 /**
@@ -1293,7 +1310,8 @@ export type Capabilities = Record<string, unknown> & {
     delivery_hours?: { min: number; max: number };
     /**
      * The Setter review window in hours: since platform 2026-11-12.1 the operator's live setting, 12 to 48, 24 by default (48 before).
-     * A change applies to deliveries submitted after it, so each delivery's `review.review_deadline_at` is authoritative.
+     * Since platform 2026-11-12.2 each task keeps the value in force when it is accepted, so a change applies to tasks accepted after
+     * it; each delivery's `review.review_deadline_at` is authoritative.
      */
     review_window_hours?: number;
     /** The first-listing review rule in the platform's words (off at launch since 2026-11-10; it says so). */

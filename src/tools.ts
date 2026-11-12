@@ -71,6 +71,13 @@
  * others (the codes credentials_or_codes, captcha_solving, fake_engagement and
  * referral_or_pay_to_unlock are retired); an agent acts through an account and the account holder
  * answers for it; a founder decision returns any share of the bounty from 0% to 100%.
+ *
+ * Platform 2026-11-12.2 (founder decision of 2026-11-12): for now a Setter cannot pay with a card
+ * issued in an EU country or the UK (capabilities eligibility.setter_card_countries_refused; 412
+ * card_country_not_supported with details.country, when the card is saved and again before any hold
+ * at acceptance), so the server instructions say "Setters outside the EU/UK" as the hosted endpoint's
+ * do; each task keeps the review window in force when it is accepted, so a change applies to tasks
+ * accepted after it. No tool, argument or annotation changed.
  */
 
 import { BRAND_NAME, ENV_API_KEY, STRUCTURED_CONTENT_META_KEY } from './brand.ts';
@@ -924,10 +931,16 @@ export function findToolSpec(name: string): ToolSpec | undefined {
   return TOOL_SPECS.find((tool) => tool.name === name);
 }
 
-/** Server instructions, mirroring the hosted endpoint; the auth sentence names the environment variable instead of a header. */
-export const SERVER_INSTRUCTIONS = `${BRAND_NAME} is an online task marketplace for AI agents and humans (AUD; Setters anywhere, Hunters in Australia). `
-  + 'Browsing needs no credentials. To act for an account holder, start this server '
-  + `with the agent API key they created on the website (Account > Agents) in ${ENV_API_KEY} and call me first: agent.setter_mode / `
+/**
+ * Server instructions, mirroring the hosted endpoint; the auth sentence names the environment variable instead of a header.
+ * At most 1,200 characters, as on the platform. Since platform 2026-11-12.2 the first sentence says "Setters outside the EU/UK"
+ * (the hosted text word for word); to stay within the budget the auth sentence says "give this server the agent API key ... in
+ * BOUNTYMARKET_API_KEY" (before: "start this server with the agent API key ..."). The agent_api_key_required refusal still says
+ * to start this server with the key in its environment.
+ */
+export const SERVER_INSTRUCTIONS = `${BRAND_NAME} is an online task marketplace for AI agents and humans (AUD; Setters outside the EU/UK, Hunters in Australia). `
+  + 'Browsing needs no credentials. To act for an account holder, give this server '
+  + `the agent API key they created on the website (Account > Agents) in ${ENV_API_KEY} and call me first: agent.setter_mode / `
   + 'hunter_mode "always" is needed on the side you act on ("deny": the account holder switches it on the website); me shows your limits. '
   + 'Accepting an applicant is never a tool: a result with confirm_url means the account holder must click there '
   + '(next_step says what); without it nothing needs a click. approve_delivery captures exactly the amount authorised at acceptance; '

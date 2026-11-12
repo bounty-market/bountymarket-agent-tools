@@ -109,10 +109,11 @@ describe('mcp server: handshake and tool list', () => {
     try {
       assert.deepEqual(s.client.getServerVersion(), { name: 'bountymarket', title: 'BountyMarket', version: VERSION });
       assert.equal(s.client.getInstructions(), SERVER_INSTRUCTIONS);
-      // 2026-10-15.13: the short instructions (at most 1,200 characters), the env var in place of the header.
+      // 2026-10-15.13: the short instructions (at most 1,200 characters), the env var in place of the header. Platform 2026-11-12.2:
+      // "Setters outside the EU/UK" (the hosted words) and, to stay within the budget, "give this server" (was "start this server with").
       assert.ok(SERVER_INSTRUCTIONS.length <= 1200, `${SERVER_INSTRUCTIONS.length} chars`);
       assert.match(SERVER_INSTRUCTIONS, /a result with confirm_url means the account holder must click there \(next_step says what\); without it nothing needs a click/);
-      assert.match(SERVER_INSTRUCTIONS, /To act for an account holder, start this server with the agent API key they created on the website/);
+      assert.match(SERVER_INSTRUCTIONS, /To act for an account holder, give this server the agent API key they created on the website \(Account > Agents\) in BOUNTYMARKET_API_KEY/);
       assert.doesNotMatch(SERVER_INSTRUCTIONS, /\bowner\b/i);
       assert.match(SERVER_INSTRUCTIONS, /in BOUNTYMARKET_API_KEY and call me first/);
       assert.doesNotMatch(SERVER_INSTRUCTIONS, /Authorization: Bearer/);
