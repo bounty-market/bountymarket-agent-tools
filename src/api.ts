@@ -1089,22 +1089,24 @@ export type CapabilitiesMoney = Record<string, unknown> & {
 
 /**
  * `eligibility` member: who may take each side (founder decision D1, 2026-10-07; since platform 2026-11-12.2 Setter cards
- * issued in an EU country or the UK are refused for now). The same object is the manifest's `eligibility` and the policy
- * document's `launch_rules.eligibility`.
+ * issued in an EU country or the UK are refused for now, and since platform 2026-11-12.3 cards issued in Vietnam too). The same
+ * object is the manifest's `eligibility` and the policy document's `launch_rules.eligibility`.
  */
 export type Eligibility = {
   /**
-   * "Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not
-   * accept cards issued in an EU country or the UK, or prepaid cards. Every bounty is charged in AUD." (Before platform
-   * 2026-11-12.2: "Anyone, any country, with a non-prepaid card; charged in AUD.")
+   * "Setters may be anywhere in the world except the European Union, the United Kingdom and Vietnam: for now the platform does
+   * not accept cards issued in an EU country, the UK or Vietnam, or prepaid cards. Every bounty is charged in AUD." (Platform
+   * 2026-11-12.2 named only the European Union and the United Kingdom; before it: "Anyone, any country, with a non-prepaid card;
+   * charged in AUD.")
    */
   setters: string;
   /** "Australia only: Stripe Connect account with an Australian bank account and an ABN or hobby statement." */
   hunters: string;
   /**
-   * The card issuing countries a Setter cannot pay from for now: ISO 3166-1 alpha-2 codes, sorted, the 27 EU member states
-   * and `GB` (platform 2026-11-12.2). The platform checks the card's issuing country; such a card is refused
-   * when it is saved and again before any hold at acceptance with 412 `card_country_not_supported` (`details.country`).
+   * The card issuing countries a Setter cannot pay from for now: ISO 3166-1 alpha-2 codes, sorted, the 27 EU member states,
+   * `GB` (platform 2026-11-12.2) and `VN` (platform 2026-11-12.3): 29 codes. The platform checks the card's issuing country;
+   * such a card is refused when it is saved and again before any hold at acceptance with 412 `card_country_not_supported`
+   * (`details.country`).
    * Optional: an older deployment omits it.
    */
   setter_card_countries_refused?: string[];

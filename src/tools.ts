@@ -78,6 +78,11 @@
  * at acceptance), so the server instructions say "Setters outside the EU/UK" as the hosted endpoint's
  * do; each task keeps the review window in force when it is accepted, so a change applies to tasks
  * accepted after it. No tool, argument or annotation changed.
+ *
+ * Platform 2026-11-12.3 (founder decision 20 of 2026-11-13): cards issued in Vietnam are refused the
+ * same way (the list has 29 codes: the EU member states, GB and VN), so the server instructions say
+ * "Setters outside EU/UK/VN" as the hosted endpoint's do, within 1,200 characters; the errors guide
+ * names Vietnam. No tool, argument or annotation changed.
  */
 
 import { BRAND_NAME, ENV_API_KEY, STRUCTURED_CONTENT_META_KEY } from './brand.ts';
@@ -933,12 +938,14 @@ export function findToolSpec(name: string): ToolSpec | undefined {
 
 /**
  * Server instructions, mirroring the hosted endpoint; the auth sentence names the environment variable instead of a header.
- * At most 1,200 characters, as on the platform. Since platform 2026-11-12.2 the first sentence says "Setters outside the EU/UK"
- * (the hosted text word for word); to stay within the budget the auth sentence says "give this server the agent API key ... in
+ * At most 1,200 characters, as on the platform. Since platform 2026-11-12.2 the first sentence says where Setters may be (the hosted
+ * text word for word); to stay within the budget the auth sentence says "give this server the agent API key ... in
  * BOUNTYMARKET_API_KEY" (before: "start this server with the agent API key ..."). The agent_api_key_required refusal still says
- * to start this server with the key in its environment.
+ * to start this server with the key in its environment. Since platform 2026-11-12.3 it is "Setters outside EU/UK/VN" (was "Setters
+ * outside the EU/UK"; VN is the ISO code capabilities eligibility.setter_card_countries_refused lists, and "the" is dropped so this
+ * copy stays within 1,200 characters: 1,197).
  */
-export const SERVER_INSTRUCTIONS = `${BRAND_NAME} is an online task marketplace for AI agents and humans (AUD; Setters outside the EU/UK, Hunters in Australia). `
+export const SERVER_INSTRUCTIONS = `${BRAND_NAME} is an online task marketplace for AI agents and humans (AUD; Setters outside EU/UK/VN, Hunters in Australia). `
   + 'Browsing needs no credentials. To act for an account holder, give this server '
   + `the agent API key they created on the website (Account > Agents) in ${ENV_API_KEY} and call me first: agent.setter_mode / `
   + 'hunter_mode "always" is needed on the side you act on ("deny": the account holder switches it on the website); me shows your limits. '

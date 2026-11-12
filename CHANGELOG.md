@@ -2,22 +2,25 @@
 
 ## Unreleased
 
-Follows the platform's releases 2026-11-12.1 and 2026-11-12.2. No tool or argument changed, and the
-`--json` documents are the platform's as before (they gain the fields and the error code below).
+Follows the platform's releases 2026-11-12.1, 2026-11-12.2 and 2026-11-12.3. No tool or argument
+changed, and the `--json` documents are the platform's as before (they gain the fields and the error
+code below).
 
-- **Setter cards issued in the EU or the UK are refused, for now.** Setters may be anywhere in the
-  world except the European Union and the United Kingdom: for now the platform does not accept cards
-  issued in an EU country or the UK, or prepaid cards. The platform checks the card's issuing country.
+- **Setter cards issued in the EU, the UK or Vietnam are refused, for now.** Setters may be anywhere
+  in the world except the European Union, the United Kingdom and Vietnam: for now the platform does
+  not accept cards issued in an EU country, the UK or Vietnam, or prepaid cards (Vietnam since
+  platform 2026-11-12.3). The platform checks the card's issuing country.
   Such a card is not kept when it is saved, and accepting an applicant (by hand or by
   auto-accept) is refused before any hold with the new `412 card_country_not_supported`
   (`details.country`, the issuing country); an auto-accept stopped this way leaves the application
   pending as `payment_failed`. `capabilities.eligibility` has two new fields,
-  `setter_card_countries_refused` (the 27 EU member states and `GB`) and `setter_card_country_rule`,
-  and `me.readiness` a new Setter gap, `card_country`. The `Eligibility` type has the two fields; the
-  server instructions say "Setters outside the EU/UK" (as the hosted endpoint's do; to stay within
-  1,200 characters their key sentence now reads "give this server the agent API key ... in
-  `BOUNTYMARKET_API_KEY`"); the errors guide, the CLI help, `SKILL.md`, `README.md` and
-  `docs/quickstart.md` state the rule; `bountymarket capabilities` prints the refused countries.
+  `setter_card_countries_refused` (29 codes: the 27 EU member states, `GB` and `VN`) and
+  `setter_card_country_rule`, and `me.readiness` a new Setter gap, `card_country`. The `Eligibility`
+  type has the two fields; the server instructions say "Setters outside EU/UK/VN" (as the hosted
+  endpoint's do; to stay within 1,200 characters their key sentence now reads "give this server the
+  agent API key ... in `BOUNTYMARKET_API_KEY`", and "the" before "EU" is gone); the errors guide, the
+  CLI help, `SKILL.md`, `README.md` and `docs/quickstart.md` state the rule;
+  `bountymarket capabilities` prints the refused countries.
 - **Prohibited categories: fewer, and two new codes.** The prohibited list keeps identity proxying,
   academic cheating, adult services, gambling, payments with no deliverable and anything else illegal
   or harmful; in-person work (`offline_task`) is still held for a check, not refused. In

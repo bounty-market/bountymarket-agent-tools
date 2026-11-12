@@ -69,8 +69,9 @@ describe('brand module', () => {
     assert.deepEqual(GUIDES.map((g) => g.uri), ['errors', 'waiting', 'issue-flow', 'money', 'files'].map((n) => `bountymarket://guide/${n}`));
     assert.equal(STRUCTURED_CONTENT_META_KEY, 'bountymarket/structuredContent', 'protocol identifier derived from the machine name (src/brand.ts), as on the platform');
     assert.equal(GUIDES.find((g) => g.name === 'errors')!.text.includes('is x-bountymarket.errors in the OpenAPI document.'), true, 'the errors guide names the OpenAPI extension');
-    // Platform 2026-11-12.2: Setter cards issued in an EU country or the UK are refused for now; the hosted instructions say so in these words.
-    assert.ok(SERVER_INSTRUCTIONS.startsWith('BountyMarket is an online task marketplace for AI agents and humans (AUD; Setters outside the EU/UK, Hunters in Australia). '), SERVER_INSTRUCTIONS);
+    // Platform 2026-11-12.2: Setter cards issued in an EU country or the UK are refused for now, and since 2026-11-12.3 cards issued in
+    // Vietnam too; the hosted instructions say so in these words ("EU/UK/VN", within 1,200 characters).
+    assert.ok(SERVER_INSTRUCTIONS.startsWith('BountyMarket is an online task marketplace for AI agents and humans (AUD; Setters outside EU/UK/VN, Hunters in Australia). '), SERVER_INSTRUCTIONS);
     assert.doesNotMatch(SERVER_INSTRUCTIONS, /Setters anywhere/);
     assert.ok(SERVER_INSTRUCTIONS.includes('(_meta {"bountymarket/structuredContent": true} adds structuredContent)'));
     assert.equal(SCREENING_HOLD_SENTENCE, 'Your listing is held for a founder check because it looks like it may need in-person work (BountyMarket is online-only at launch). If it is online, no action is needed; the founder will release it.');

@@ -125,7 +125,7 @@ describe('tool parity with the hosted endpoint', () => {
     }
     assert.doesNotMatch(SERVER_INSTRUCTIONS, /\bowner\b/i);
     // Platform 2026-11-12.2: "give this server" (was "start this server with") keeps the instructions within 1,200 characters
-    // now that they say "Setters outside the EU/UK".
+    // now that they say where Setters may be ("Setters outside the EU/UK"; since 2026-11-12.3 "Setters outside EU/UK/VN").
     assert.match(SERVER_INSTRUCTIONS, /To act for an account holder, give this server the agent API key they created on the website/);
     assert.match(SERVER_INSTRUCTIONS, /a result with confirm_url means the account holder must click there \(next_step says what\); without it nothing needs a click\./);
     assert.match(byName.list_my_tasks!.description, /^Your tasks; pending_owner_action: what only the account holder can click\.$/);
@@ -550,32 +550,40 @@ describe('trust stage 2 (platform 2026-10-30.1) mirrored without a shape change'
   });
 });
 
-describe('Setter card countries (platform 2026-11-12.2) mirrored without a tool change', () => {
+describe('Setter card countries (platform 2026-11-12.2; Vietnam since 2026-11-12.3) mirrored without a tool change', () => {
   // The platform's Setter sentence (its Terms of Service section 2 bullet with "the platform" for "we"; founder decision of
-  // 2026-11-12), word for word wherever the toolkit says where Setters may be.
-  const SETTER_WHERE = 'Setters may be anywhere in the world except the European Union and the United Kingdom: for now the platform does not accept '
-    + 'cards issued in an EU country or the UK, or prepaid cards.';
+  // 2026-11-12, and decision 20 of 2026-11-13 for Vietnam), word for word wherever the toolkit says where Setters may be.
+  const SETTER_WHERE = 'Setters may be anywhere in the world except the European Union, the United Kingdom and Vietnam: for now the platform does '
+    + 'not accept cards issued in an EU country, the UK or Vietnam, or prepaid cards.';
+  // The two-place wording of platform 2026-11-12.2, which must not survive anywhere the toolkit states the rule.
+  const WITHOUT_VIETNAM = /except the European Union and the United Kingdom|EU country or the UK|outside the EU\/UK|欧盟和英国除外|欧盟国家或英国/u;
   const doc = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
   const flat = (text: string) => text.replace(/\s+/gu, ' ');
 
-  it('the instructions say "Setters outside the EU/UK" as the hosted endpoint does, within 1,200 characters; the errors guide names card_country_not_supported', () => {
-    assert.ok(SERVER_INSTRUCTIONS.includes('(AUD; Setters outside the EU/UK, Hunters in Australia). '), SERVER_INSTRUCTIONS);
+  it('the instructions say "Setters outside EU/UK/VN" as the hosted endpoint does, within 1,200 characters; the errors guide names card_country_not_supported', () => {
+    assert.ok(SERVER_INSTRUCTIONS.includes('(AUD; Setters outside EU/UK/VN, Hunters in Australia). '), SERVER_INSTRUCTIONS);
     assert.ok(SERVER_INSTRUCTIONS.length <= 1200, `${SERVER_INSTRUCTIONS.length} chars`);
     const errors = GUIDES.find((g) => g.name === 'errors')!.text;
     assert.ok(errors.includes('payment_method_required / prepaid_cards_not_accepted / card_country_not_supported (the Setter saves a card; not prepaid, '
-      + 'and for now not issued in an EU country or the UK: capabilities eligibility.setter_card_countries_refused)'));
+      + 'and for now not issued in an EU country, the UK or Vietnam: capabilities eligibility.setter_card_countries_refused)'));
+    assert.doesNotMatch(SERVER_INSTRUCTIONS, WITHOUT_VIETNAM);
+    assert.doesNotMatch(errors, WITHOUT_VIETNAM);
   });
 
   it('README.md, docs/quickstart.md, SKILL.md and the CLI help state the exception wherever they say where Setters may be', () => {
     for (const file of ['README.md', 'docs/quickstart.md']) assert.ok(flat(doc(file)).includes(SETTER_WHERE), file);
     assert.ok(flat(USAGE).includes(SETTER_WHERE), 'bountymarket --help');
     const skill = doc('SKILL.md');
-    assert.match(skill, /^description: .*\(AUD; Setters outside the EU\/UK, Hunters in Australia\)\. /mu, 'the Skill description, as the instructions');
-    assert.ok(flat(skill).includes('Setters may be anywhere in the world except the European Union and the United Kingdom, paying in AUD'));
+    assert.match(skill, /^description: .*\(AUD; Setters outside EU\/UK\/Vietnam, Hunters in Australia\)\. /mu,
+      'the Skill description: the instructions\' parenthetical with Vietnam spelled out (no 1,200-character cap here)');
+    assert.ok(flat(skill).includes('Setters may be anywhere in the world except the European Union, the United Kingdom and Vietnam, paying in AUD'));
     assert.ok(flat(skill).includes('`payment_method_required` / `prepaid_cards_not_accepted` / `card_country_not_supported`'), 'the 412 family in Errors and limits');
     assert.ok(flat(skill).includes('`capabilities.eligibility.setter_card_countries_refused`'));
-    assert.ok(doc('README.md').includes('发单人可以身在世界任何地方，欧盟和英国除外：'), 'the Chinese section says the same');
+    assert.ok(doc('README.md').includes('发单人可以身在世界任何地方，欧盟、英国和越南除外：'), 'the Chinese section says the same');
+    assert.ok(flat(doc('README.md')).includes('平台暂不接受在欧盟国家、英国或越南发行的卡，也不接受预付卡'), 'and names the cards the same way');
+    assert.doesNotMatch(flat(USAGE), WITHOUT_VIETNAM, 'bountymarket --help');
     for (const file of ['README.md', 'docs/quickstart.md', 'SKILL.md', 'AGENTS.md']) {
+      assert.doesNotMatch(flat(doc(file)), WITHOUT_VIETNAM, file);
       assert.doesNotMatch(flat(doc(file)), /Setters anywhere|Setters may be anywhere(?! in the world except)|non-prepaid card|任何国家用非预付卡/u, file);
       // The platform's Terms section 2 names where the Setter is as well as the card (its rulebook keeps that question
       // open), so the docs say what the platform checks, the card's issuing country, and never that residence does not count.
